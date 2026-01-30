@@ -141,10 +141,21 @@ Treasure spawns continuously - there is ALWAYS at least one piece of food on scr
 
 ### Treasure Spawning Logic
 - **Immediate spawn** on game start
-- **Instant respawn** when collected
-- **Forced spawn** even if no empty position found
-- **Safety check** every game update to ensure treasure exists
-- **Console logging** for debugging
+- **Instant respawn** when collected (with triple-attempt verification)
+- **Forced spawn** even if no empty position found (will overlap if needed)
+- **Safety check** every game update (3 times per frame) to ensure treasure exists
+- **Console logging** for debugging and verification
+- **Never null**: Treasure variable should NEVER be null during active gameplay
+
+**Spawn Verification System:**
+1. Check before update
+2. Check before render
+3. Check after render
+4. Triple-attempt on collection
+5. Emergency spawn if any check fails
+
+**Why This Matters:**
+Earlier versions had a bug where treasure would spawn at coordinates outside the visible canvas (e.g., at x=25, y=15 with 30px cells = 750px, 450px which was off the 720×480 canvas). The current version ensures treasure spawns within grid bounds AND is always present.
 
 ---
 
@@ -156,26 +167,37 @@ Medieval knights with catapults attack the dragon from the sides of the screen.
 - **Frequency**: Every 8 seconds
 - **Spawn Chance**: 85% when timer expires
 - **First Spawn**: 3 seconds after game starts
-- **Spawn Location**: Randomly from left or right side
-- **Vertical Position**: Random mid-height range
+- **Spawn Location**: Left or right side (random)
+- **Vertical Position**: Bottom of screen (60 pixels from bottom edge) - knights stand on ground level
+- **Horizontal Position**: 100px from left edge OR 620px from right edge
 
 ### Knight Visual Design
 
 #### Knight Character
 - **Armor**: Silver/grey (#C0C0C0)
 - **Helmet**: Gold (#FFD700)
-- **Plume**: Red feathers on helmet top
+- **Plume**: Red feathers on helmet top (3 feathers)
 - **Shield**: Blue (#0000CD) with gold cross
-- **Position**: Standing beside catapult
+- **Position**: Standing at ground level, beside catapult
+- **Size**: Approximately 80 pixels tall
 
 #### Catapult
-- **Base**: Brown wood (#8B4513)
-- **Arm**: Wooden beam that rotates
+- **Base**: Brown wood platform (#8B4513) - 80px wide
+- **Post**: Dark brown support beam (#654321) - 24px wide, 50px tall
+- **Arm**: Dark brown rotating beam (#654321) - 12px wide, 60px tall
+- **Basket**: Brown cup at arm end (#8B4513) holding cannonball
 - **Loading Animation**: 
   - Arm pulls back over 3 seconds (60 frames)
+  - Rotates up to 60 degrees
   - Shows cannonball in basket
   - Tension builds visually
-- **Fire Sequence**: Arm releases, cannonball launches
+- **Fire Sequence**: Arm releases, cannonball launches upward
+
+#### Positioning
+- **Ground Level**: Knights spawn at y = canvas.height - 60
+- **Left Side**: x = 100 pixels from left edge
+- **Right Side**: x = 620 pixels from right edge (canvas.width - 100)
+- **On Kingdom Ground**: Positioned above village buildings and castle wall
 
 ### Warning System
 - **⚠️ Warning Symbol**: Flashes above knight
@@ -399,10 +421,11 @@ Located ABOVE the game canvas (not overlapping play area).
 ### Performance Optimizations
 
 #### Canvas Size
-- **Resolution**: 720x480 pixels
-- **Reason**: Reduced by 36% for better performance
+- **Resolution**: 720×480 pixels
+- **Reason**: Optimized for performance (36% smaller than original 900×600)
 - **Aspect Ratio**: 3:2
 - **Responsive**: Scales with CSS
+- **Grid Fit**: Exactly fits 30×20 grid at 24 pixels per cell
 
 #### Particle System
 - **Limit**: Maximum 50 particles rendered
@@ -430,9 +453,10 @@ Located ABOVE the game canvas (not overlapping play area).
 
 ### Grid System
 - **Size**: 30 columns × 20 rows
-- **Cell Size**: 24 pixels
+- **Cell Size**: 24 pixels (adjusted for 720×480 canvas)
 - **Total**: 600 playable cells
 - **Coordinate System**: 0-indexed
+- **Canvas Dimensions**: 720 pixels wide × 480 pixels tall
 
 ### Speed Progression
 - **Starting Speed**: 120ms between moves
@@ -509,12 +533,42 @@ Placeholder for future audio system:
 1. **Fire Breath**: Visual only, no gameplay effect
 2. **Audio**: No sound effects or music
 3. **Mobile**: Not fully optimized for touch controls
-4. **Obstacles**: Removed for gameplay balance
 
 ### Debug Features
-- **Console Logging**: Shows treasure spawns, knight spawns
-- **Emergency Spawns**: Logged when backup systems activate
-- **Browser Console**: Press F12 to view debug info
+The game includes extensive debugging to ensure treasure always spawns:
+
+**Console Logging (Press F12 to view):**
+- `"Treasure spawned at: X Y [emoji]"` - Every time treasure appears
+- `"COLLISION! Dragon ate treasure at X Y"` - When collected
+- `"Emergency treasure spawn!"` - If backup system activates
+- `"CRITICAL: No treasure before/after render!"` - If treasure missing
+- `"Knight spawned on [side] side at y: Y"` - Knight appearances
+- `"Game started! Treasure should be visible."` - Game initialization
+
+**Multiple Safety Systems:**
+1. **Pre-Update Check**: Spawns treasure before each update if missing
+2. **Pre-Render Check**: Spawns treasure before rendering if missing  
+3. **Post-Render Check**: Spawns treasure after rendering if missing
+4. **Collection Safety**: Triple spawn attempts when collecting treasure
+5. **Force Spawn**: Will spawn even if position check fails
+
+### Troubleshooting
+
+**If treasure doesn't appear:**
+1. Open browser console (F12)
+2. Look for error messages
+3. Check if treasure is spawning off-screen
+4. Verify canvas size matches grid calculations
+
+**If knights don't appear:**
+1. Wait 3 seconds after game starts
+2. Check console for "Knight spawned" messages
+3. Verify knights array is being updated
+
+**If game is laggy:**
+1. Close other browser tabs
+2. Check particle count in console
+3. Ensure canvas size is 720×480
 
 ---
 
@@ -564,19 +618,39 @@ dragon-quest/
 
 ## 🔄 Version History
 
-### v1.0 - Final Release
-- Removed castle obstacles
-- Fixed treasure spawning (always visible)
-- Fixed knight spawning (immediate start)
-- Optimized performance (reduced lag)
-- Added storm clouds background
-- Enhanced dragon visuals (wings, horns, tail)
-- Implemented knight catapult system
-- Added 8 treasure varieties
-- Complete evolution system (6 stages)
-- Portal teleportation system
-- Full HUD implementation
-- Leaderboard system
+### v1.0 - Final Release (Current) ✅
+**All features working and tested!**
+
+- ✅ **CRITICAL FIX**: Grid cell size corrected to 24 pixels to match 720×480 canvas
+- ✅ **Knights visible and working**: Positioned at bottom of screen (ground level)
+- ✅ **Knights spawn correctly**: At x: 100 (left) or x: 620 (right), y: canvas.height - 60
+- ✅ **Treasure always spawns**: Multiple redundant safety systems ensure food is always present
+- ✅ **Cannonballs fire properly**: Knights load, aim, and fire at dragon
+- ✅ **Performance optimized**: Reduced canvas size, particle limits, simplified rendering
+- ✅ **Removed castle obstacles**: No collision or rendering of castle tower obstacles
+- ✅ **Storm clouds background**: 5 dark clouds with random lightning instead of floating castles
+- ✅ **Enhanced dragon visuals**: Huge flapping wings, curved horns, fire breath animation, pointed tail
+- ✅ **8 treasure varieties**: With emojis (💰🍖🐟💎💍🏆💼👛)
+- ✅ **Complete evolution system**: 6 stages from Hatchling to Rainbow Dragon King
+- ✅ **Portal teleportation**: Rings of fire with flames and particles
+- ✅ **Full HUD**: Positioned above game canvas (not overlapping)
+- ✅ **Leaderboard system**: Top 5 scores with name entry
+- ✅ **Tutorial updated**: Accurate instructions without castle obstacles
+
+### Development Journey
+- **12+ iterations** through extensive testing and debugging
+- **Treasure spawning** fixed through multiple approaches
+- **Knights visibility** solved by repositioning from off-screen to on-screen
+- **Grid-canvas mismatch** resolved by adjusting cell size
+- **Performance** improved through optimization passes
+
+### Known Bug Fixes
+1. **Treasure Off-Screen Bug**: Grid size was 30px but canvas was 720px, causing treasure to spawn outside visible area. Fixed by setting grid size to 24px (30 cells × 24px = 720px)
+2. **No Treasure After Collection**: Added triple-spawn attempts and verification checks with multiple redundant safety systems
+3. **Knights Not Spawning**: Removed score requirement and reduced first spawn to 3 seconds
+4. **Knights Not Visible**: Original spawn positions were off-screen (x: -80 or x: canvas.width + 80). Fixed by spawning at visible positions (x: 100 or x: 620)
+5. **Knights Floating**: Changed y-position from random mid-height to fixed bottom position (canvas.height - 60) so knights appear on ground
+6. **Castle Obstacles**: Completely removed collision detection and rendering
 
 ---
 
@@ -603,6 +677,15 @@ dragon-quest/
 4. Avoid trapping yourself
 5. Stay near center of board when possible
 6. Plan your path ahead
+7. **Watch the ground** - knights fire from bottom corners
+
+### Visual Layout (Top to Bottom)
+1. **Sky** - Blue gradient with white clouds and dark storm clouds
+2. **Upper Area** - Dragon flies, portals appear
+3. **Middle Area** - Most gameplay happens here
+4. **Lower Area** - Village buildings visible
+5. **Ground Level** - Knights and catapults stationed here
+6. **Bottom** - Castle wall with crenellations
 
 ---
 

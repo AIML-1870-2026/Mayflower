@@ -316,7 +316,7 @@
 
         // Game Configuration
         const CONFIG = {
-            GRID: { WIDTH: 30, HEIGHT: 20, SIZE: 30 },
+            GRID: { WIDTH: 30, HEIGHT: 20, SIZE: 24 },
             SPEED: { START: 120, MIN: 50, DECREMENT: 2 },
             EVOLUTION: [
                 { name: 'Hatchling', max: 50, color: '#4CAF50' },
@@ -466,7 +466,6 @@
             knightSpawnTimer = Date.now() + 3000; // First knight in 3 seconds
             
             spawnTreasure();
-            console.log('Game started! Treasure should be visible. First knight in 3 seconds.');
             
             lastUpdateTime = Date.now();
             gameLoop();
@@ -484,7 +483,21 @@
                     update();
                     lastUpdateTime = currentTime;
                 }
+                
+                // CRITICAL: Double-check treasure exists before rendering
+                if (!treasure) {
+                    console.error('CRITICAL: No treasure before render! Emergency spawn!');
+                    spawnTreasure();
+                }
+                
                 render();
+                
+                // CRITICAL: Triple-check treasure exists after rendering
+                if (!treasure) {
+                    console.error('CRITICAL: No treasure after render! Emergency spawn!');
+                    spawnTreasure();
+                }
+                
                 updateFireBreathDisplay();
             }
             
@@ -525,6 +538,7 @@
             dragon.body.unshift(head);
             
             if (treasure && head.x === treasure.x && head.y === treasure.y) {
+                console.log('COLLISION! Dragon ate treasure at', head.x, head.y);
                 collectTreasure(treasure);
             } else if (!dragon.growing) {
                 dragon.body.pop();
@@ -566,7 +580,6 @@
                     spawnKnight();
                 }
                 knightSpawnTimer = Date.now() + KNIGHT_SPAWN_INTERVAL;
-                console.log('Knight spawn timer reset, next spawn in', KNIGHT_SPAWN_INTERVAL / 1000, 'seconds');
             }
             
             // Update knights
@@ -717,7 +730,11 @@
             }
             
             // Draw treasure
-            if (treasure) drawTreasure(treasure);
+            if (treasure) {
+                drawTreasure(treasure);
+            } else {
+                console.error('RENDER: No treasure to draw! This should never happen!');
+            }
             
             // Draw crown
             if (crown && crown.active) drawCrown(crown);
@@ -1452,15 +1469,22 @@
                 gameState.gameSpeed = Math.max(CONFIG.SPEED.MIN, gameState.gameSpeed - CONFIG.SPEED.DECREMENT);
             }
             
-            // Spawn new treasure BEFORE clearing old one to ensure continuous supply
-            const oldTreasure = treasure;
+            // IMMEDIATELY spawn new treasure - don't clear old one first
+            console.log('Treasure collected! Spawning new treasure immediately...');
             spawnTreasure();
             
-            // Verify treasure was successfully spawned
+            // Final verification
             if (!treasure) {
-                console.error('Failed to spawn treasure!');
-                spawnTreasure(); // Try again
+                console.error('FAILED to spawn treasure after collection! Retrying...');
+                spawnTreasure();
             }
+            
+            if (!treasure) {
+                console.error('DOUBLE FAILURE! Third attempt...');
+                spawnTreasure();
+            }
+            
+            console.log('Treasure spawn complete. Treasure exists:', !!treasure);
             
             updateHUD();
         }
@@ -1529,17 +1553,17 @@
         // Spawn Knight with Catapult
         function spawnKnight() {
             const side = Math.random() > 0.5 ? 'left' : 'right';
-            const y = Math.random() * (canvas.height - 200) + 100;
+            const y = canvas.height - 60; // Fixed at bottom of screen (60 pixels from bottom)
             
             knights.push({
-                x: side === 'left' ? -80 : canvas.width + 80,
+                x: side === 'left' ? 100 : canvas.width - 100,
                 y: y,
                 side: side,
                 frameTime: 0,
                 fired: false
             });
             
-            console.log('Knight spawned on', side, 'side at y:', y);
+            console.log('Knight spawned on', side, 'side at bottom of screen. x:', (side === 'left' ? 100 : canvas.width - 100), 'y:', y);
         }
         
         // Fire Cannonball from Knight
@@ -1581,79 +1605,77 @@
             
             ctx.save();
             
-            if (knight.side === 'right') {
-                ctx.translate(x, 0);
-                ctx.scale(-1, 1);
-                ctx.translate(-x, 0);
-            }
-            
-            // Catapult base
+            // CATAPULT BASE - brown wooden platform
             ctx.fillStyle = '#8B4513';
-            ctx.fillRect(x - 30, y, 60, 15);
-            ctx.fillRect(x - 10, y - 40, 20, 40);
+            ctx.fillRect(x - 40, y, 80, 20);
             
-            // Catapult arm
-            const armAngle = -Math.PI / 4 * loadingProgress;
+            // CATAPULT ARM POST
+            ctx.fillStyle = '#654321';
+            ctx.fillRect(x - 12, y - 50, 24, 50);
+            
+            // CATAPULT ARM (loading animation)
+            const armAngle = -Math.PI / 3 * loadingProgress;
             ctx.save();
-            ctx.translate(x, y - 40);
+            ctx.translate(x, y - 50);
             ctx.rotate(armAngle);
             
-            ctx.strokeStyle = '#654321';
-            ctx.lineWidth = 8;
-            ctx.beginPath();
-            ctx.moveTo(0, 0);
-            ctx.lineTo(0, -40);
-            ctx.stroke();
+            // Arm beam
+            ctx.fillStyle = '#654321';
+            ctx.fillRect(-6, -60, 12, 60);
             
+            // Basket/cup at end
             ctx.fillStyle = '#8B4513';
-            ctx.fillRect(-8, -50, 16, 10);
+            ctx.fillRect(-12, -70, 24, 15);
             
+            // Cannonball in basket (before firing)
             if (!knight.fired) {
                 ctx.fillStyle = '#333';
                 ctx.beginPath();
-                ctx.arc(0, -45, 6, 0, Math.PI * 2);
+                ctx.arc(0, -63, 8, 0, Math.PI * 2);
                 ctx.fill();
             }
             
             ctx.restore();
             
-            // Knight body
+            // KNIGHT CHARACTER
+            // Body (armor)
             ctx.fillStyle = '#C0C0C0';
-            ctx.fillRect(x - 40, y - 25, 15, 25);
+            ctx.fillRect(x - 60, y - 35, 20, 35);
             
-            // Helmet
+            // Head (helmet)
             ctx.fillStyle = '#FFD700';
-            ctx.fillRect(x - 40, y - 40, 15, 15);
+            ctx.fillRect(x - 60, y - 55, 20, 20);
             
-            // Plume
+            // Helmet plume (red feathers)
             ctx.fillStyle = '#FF0000';
-            ctx.fillRect(x - 38, y - 50, 3, 10);
-            ctx.fillRect(x - 34, y - 48, 3, 8);
-            ctx.fillRect(x - 30, y - 50, 3, 10);
+            ctx.fillRect(x - 58, y - 70, 4, 15);
+            ctx.fillRect(x - 52, y - 68, 4, 13);
+            ctx.fillRect(x - 46, y - 70, 4, 15);
             
             // Shield
             ctx.fillStyle = '#0000CD';
             ctx.beginPath();
-            ctx.arc(x - 50, y - 15, 8, 0, Math.PI * 2);
+            ctx.arc(x - 75, y - 20, 12, 0, Math.PI * 2);
             ctx.fill();
             
+            // Shield cross (gold)
             ctx.strokeStyle = '#FFD700';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 3;
             ctx.beginPath();
-            ctx.moveTo(x - 50, y - 20);
-            ctx.lineTo(x - 50, y - 10);
-            ctx.moveTo(x - 55, y - 15);
-            ctx.lineTo(x - 45, y - 15);
+            ctx.moveTo(x - 75, y - 28);
+            ctx.lineTo(x - 75, y - 12);
+            ctx.moveTo(x - 83, y - 20);
+            ctx.lineTo(x - 67, y - 20);
             ctx.stroke();
             
             ctx.restore();
             
-            // Warning
+            // WARNING INDICATOR (flashing)
             if (knight.frameTime < 60 && knight.frameTime % 20 < 10) {
-                ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
-                ctx.font = '30px Arial';
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+                ctx.font = 'bold 40px Arial';
                 ctx.textAlign = 'center';
-                ctx.fillText('⚠️', x, y - 80);
+                ctx.fillText('⚠️', x, y - 100);
             }
         }
         
