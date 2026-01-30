@@ -1,0 +1,1802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dragon's Quest - Medieval Snake Game</title>
+    <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Cinzel', serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            max-width: 900px;
+            width: 100%;
+            padding-top: 20px;
+        }
+
+        #gameTitle {
+            font-family: 'MedievalSharp', cursive;
+            font-size: 36px;
+            color: #FFD700;
+            text-align: center;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.5);
+            margin-bottom: 15px;
+            letter-spacing: 2px;
+        }
+
+        canvas {
+            border: 4px solid #FFD700;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #87CEEB 0%, #4A90E2 50%, #6B8E23 100%);
+            box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+            display: block;
+            width: 100%;
+            height: auto;
+            margin-top: 10px;
+        }
+
+        #hud {
+            position: relative;
+            background: rgba(20, 20, 20, 0.9);
+            border: 2px solid #FFD700;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-family: 'MedievalSharp', cursive;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .hud-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 14px;
+            color: #FFD700;
+        }
+
+        .hud-value {
+            color: #FFF;
+            font-weight: bold;
+        }
+
+        #fireBreathBar {
+            width: 80px;
+            height: 8px;
+            background: #333;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid #FFD700;
+        }
+
+        #fireBreathFill {
+            height: 100%;
+            background: linear-gradient(90deg, #FF4500, #FFA500);
+            transition: width 0.1s linear;
+        }
+
+        #menu, #gameOver, #tutorial {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: linear-gradient(135deg, rgba(20, 20, 20, 0.98), rgba(40, 20, 10, 0.98));
+            border: 4px solid #FFD700;
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            z-index: 100;
+            box-shadow: 0 0 50px rgba(255, 215, 0, 0.6);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        h1 {
+            font-family: 'MedievalSharp', cursive;
+            font-size: 48px;
+            color: #FFD700;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.8);
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            font-family: 'MedievalSharp', cursive;
+            font-size: 32px;
+            color: #FFD700;
+            margin-bottom: 15px;
+        }
+
+        .subtitle {
+            font-size: 18px;
+            color: #FFA500;
+            margin-bottom: 30px;
+        }
+
+        button {
+            font-family: 'Cinzel', serif;
+            font-size: 18px;
+            padding: 15px 40px;
+            margin: 10px;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            border: 3px solid #8B4513;
+            border-radius: 8px;
+            color: #1a1a2e;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.8);
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin: 20px 0;
+            text-align: left;
+        }
+
+        .stat-item {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 6px;
+            border-left: 3px solid #FFD700;
+        }
+
+        .stat-label {
+            color: #FFA500;
+            font-size: 14px;
+        }
+
+        .stat-value {
+            color: #FFF;
+            font-size: 20px;
+            font-weight: bold;
+            font-family: 'MedievalSharp', cursive;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        #evolutionBanner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: 'MedievalSharp', cursive;
+            font-size: 64px;
+            color: #FFD700;
+            text-shadow: 0 0 20px #FFA500, 3px 3px 6px #000;
+            z-index: 50;
+            animation: evolutionPulse 1s ease-out;
+            pointer-events: none;
+        }
+
+        @keyframes evolutionPulse {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0; }
+        }
+
+        .tutorial-text {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #FFF;
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        .control-hint {
+            background: rgba(255, 215, 0, 0.1);
+            padding: 8px;
+            border-radius: 6px;
+            margin: 8px 0;
+            border-left: 3px solid #FFD700;
+        }
+
+        @media (max-width: 768px) {
+            h1 { font-size: 32px; }
+            h2 { font-size: 24px; }
+            button { font-size: 14px; padding: 10px 25px; }
+            .hud-item { font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="gameTitle">🐉 DRAGON'S QUEST 👑</div>
+        
+        <div id="hud" class="hidden">
+            <div class="hud-item">
+                🐉 <span class="hud-value" id="lengthDisplay">3</span>
+            </div>
+            <div class="hud-item">
+                💰 <span class="hud-value" id="scoreDisplay">0</span>
+            </div>
+            <div class="hud-item">
+                👑 <span class="hud-value" id="highScoreDisplay">0</span>
+            </div>
+            <div class="hud-item">
+                🔥 <div id="fireBreathBar"><div id="fireBreathFill"></div></div>
+            </div>
+            <div class="hud-item">
+                ⭐ <span class="hud-value" id="evolutionDisplay">Hatchling</span>
+            </div>
+        </div>
+        
+        <canvas id="gameCanvas" width="720" height="480"></canvas>
+
+        <div id="menu">
+            <h1>🐉 DRAGON'S QUEST</h1>
+            <p class="subtitle">Claim the Crown, Rule the Kingdom</p>
+            <button id="btnStart">⚔️ START QUEST</button>
+            <button id="btnLeaderboard">👑 HALL OF KINGS</button>
+        </div>
+
+        <div id="tutorial" class="hidden">
+            <h2>Welcome, Young Dragon!</h2>
+            <div class="tutorial-text">
+                <div class="control-hint">
+                    <strong>🎮 Controls:</strong><br>
+                    Arrow Keys or WASD to move<br>
+                    SPACEBAR for fire breath 🔥
+                </div>
+                <div class="control-hint">
+                    💰 Collect treasure to grow stronger<br>
+                    👑 Grab golden crowns for massive bonuses<br>
+                    🌀 Use portals to teleport across the kingdom<br>
+                    ⚔️ Dodge knight cannonballs!<br>
+                    🧱 Avoid walls and your own tail!
+                </div>
+                <p style="margin-top: 15px;">
+                    Evolve through <strong>6 stages</strong> from Hatchling to <strong>Rainbow Dragon King</strong>!
+                </p>
+            </div>
+            <button id="btnBegin">BEGIN THE QUEST!</button>
+            <button id="btnBack">Back</button>
+        </div>
+
+        <div id="gameOver" class="hidden">
+            <h2>🏆 QUEST COMPLETE</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <div class="stat-label">Final Score</div>
+                    <div class="stat-value" id="finalScore">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Dragon Length</div>
+                    <div class="stat-value" id="finalLength">0</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Evolution</div>
+                    <div class="stat-value" id="finalEvolution">-</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Time Survived</div>
+                    <div class="stat-value" id="finalTime">0:00</div>
+                </div>
+            </div>
+            <button id="btnPlayAgain">PLAY AGAIN</button>
+            <button id="btnMainMenu">MAIN MENU</button>
+        </div>
+    </div>
+
+    <script>
+        // Dragon's Quest - Medieval Snake Game
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game Configuration
+        const CONFIG = {
+            GRID: { WIDTH: 30, HEIGHT: 20, SIZE: 30 },
+            SPEED: { START: 120, MIN: 50, DECREMENT: 2 },
+            EVOLUTION: [
+                { name: 'Hatchling', max: 50, color: '#4CAF50' },
+                { name: 'Young Dragon', max: 150, color: '#2196F3' },
+                { name: 'Adult Dragon', max: 300, color: '#F44336' },
+                { name: 'Ancient Dragon', max: 500, color: '#9C27B0' },
+                { name: 'Elder Dragon', max: 750, color: '#FFD700' },
+                { name: 'Dragon King', min: 750, color: 'rainbow' }
+            ],
+            TREASURE: [
+                { type: 'coin', points: 5, rate: 0.35, color: '#FFD700', size: 8, emoji: '💰' },
+                { type: 'pouch', points: 10, rate: 0.20, color: '#FFA500', size: 10, emoji: '👛' },
+                { type: 'meat', points: 12, rate: 0.15, color: '#8B4513', size: 11, emoji: '🍖' },
+                { type: 'fish', points: 8, rate: 0.12, color: '#4682B4', size: 9, emoji: '🐟' },
+                { type: 'ring', points: 15, rate: 0.08, color: '#FF69B4', size: 12, emoji: '💍' },
+                { type: 'ruby', points: 20, rate: 0.05, color: '#FF0000', size: 14, emoji: '💎' },
+                { type: 'chalice', points: 25, rate: 0.03, color: '#DAA520', size: 15, emoji: '🏆' },
+                { type: 'chest', points: 30, rate: 0.02, color: '#8B4513', size: 16, emoji: '💼' }
+            ],
+            CROWN: { spawnMin: 20000, spawnMax: 30000, duration: 8000, points: 100 },
+            FIRE_BREATH: { cooldown: 15000, range: 4, damage: 5 },
+            PORTAL: { scoreThreshold: 200, cooldownAfterUse: 3000 }
+        };
+
+        // Game State
+        let gameState = {
+            playing: false,
+            paused: false,
+            score: 0,
+            highScore: localStorage.getItem('dragonQuestHighScore') || 0,
+            startTime: 0,
+            gameSpeed: CONFIG.SPEED.START
+        };
+
+        // Dragon
+        let dragon = {
+            body: [],
+            direction: { x: 1, y: 0 },
+            nextDirection: null,
+            growing: false,
+            evolution: 0
+        };
+
+        // Game Objects
+        let treasure = null;
+        let crown = null;
+        let crownTimer = 0;
+        let obstacles = [];
+        let portals = [];
+        let particles = [];
+        let fireBreathReady = true;
+        let fireBreathCooldown = 0;
+        let lastUpdateTime = 0;
+        let gameLoopId = null;
+        
+        // Knight catapult system
+        let knights = [];
+        let cannonballs = [];
+        let knightSpawnTimer = 0;
+        const KNIGHT_SPAWN_INTERVAL = 8000; // Every 8 seconds (was 15)
+        const KNIGHT_SPAWN_CHANCE = 0.85; // 85% chance (was 60%)
+
+        // Initialize
+        function init() {
+            gameState.highScore = parseInt(localStorage.getItem('dragonQuestHighScore')) || 0;
+            document.getElementById('highScoreDisplay').textContent = gameState.highScore;
+            
+            // Setup button event listeners
+            document.getElementById('btnStart').addEventListener('click', showTutorial);
+            document.getElementById('btnLeaderboard').addEventListener('click', showLeaderboard);
+            document.getElementById('btnBegin').addEventListener('click', startGame);
+            document.getElementById('btnBack').addEventListener('click', showMenu);
+            document.getElementById('btnPlayAgain').addEventListener('click', startGame);
+            document.getElementById('btnMainMenu').addEventListener('click', showMenu);
+        }
+
+        // Show/Hide Screens
+        function showMenu() {
+            document.getElementById('menu').classList.remove('hidden');
+            document.getElementById('tutorial').classList.add('hidden');
+            document.getElementById('gameOver').classList.add('hidden');
+            document.getElementById('hud').classList.add('hidden');
+            gameState.playing = false;
+            if (gameLoopId) cancelAnimationFrame(gameLoopId);
+        }
+
+        function showTutorial() {
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById('tutorial').classList.remove('hidden');
+        }
+
+        function showLeaderboard() {
+            // Get leaderboard from localStorage
+            const leaderboard = JSON.parse(localStorage.getItem('dragonQuestLeaderboard') || '[]');
+            
+            let message = '🏰 HALL OF DRAGON KINGS 🏰\n\n';
+            
+            if (leaderboard.length === 0) {
+                message += 'No scores yet! Be the first to claim the throne!\n\n';
+            } else {
+                leaderboard.forEach((entry, index) => {
+                    const rank = index + 1;
+                    const crowns = rank === 1 ? '👑👑👑' : rank === 2 ? '👑👑' : rank === 3 ? '👑' : '⭐';
+                    message += `${rank}. ${entry.name}: ${entry.score} ${crowns}\n`;
+                });
+                message += '\n';
+            }
+            
+            message += `Your High Score: ${gameState.highScore}`;
+            
+            alert(message);
+        }
+
+        // Start Game
+        function startGame() {
+            document.getElementById('menu').classList.add('hidden');
+            document.getElementById('tutorial').classList.add('hidden');
+            document.getElementById('gameOver').classList.add('hidden');
+            document.getElementById('hud').classList.remove('hidden');
+            
+            gameState.playing = true;
+            gameState.paused = false;
+            gameState.score = 0;
+            gameState.startTime = Date.now();
+            gameState.gameSpeed = CONFIG.SPEED.START;
+            
+            dragon.body = [
+                { x: 10, y: 10 },
+                { x: 9, y: 10 },
+                { x: 8, y: 10 }
+            ];
+            dragon.direction = { x: 1, y: 0 };
+            dragon.nextDirection = null;
+            dragon.growing = false;
+            dragon.evolution = 0;
+            
+            treasure = null;
+            crown = null;
+            crownTimer = Date.now() + CONFIG.CROWN.spawnMin + Math.random() * (CONFIG.CROWN.spawnMax - CONFIG.CROWN.spawnMin);
+            obstacles = [];
+            portals = [];
+            particles = [];
+            fireBreathReady = true;
+            fireBreathCooldown = 0;
+            knights = [];
+            cannonballs = [];
+            knightSpawnTimer = Date.now() + 3000; // First knight in 3 seconds
+            
+            spawnTreasure();
+            console.log('Game started! Treasure should be visible. First knight in 3 seconds.');
+            
+            lastUpdateTime = Date.now();
+            gameLoop();
+            
+            updateHUD();
+        }
+
+        // Game Loop
+        function gameLoop() {
+            const currentTime = Date.now();
+            const deltaTime = currentTime - lastUpdateTime;
+            
+            if (gameState.playing && !gameState.paused) {
+                if (deltaTime >= gameState.gameSpeed) {
+                    update();
+                    lastUpdateTime = currentTime;
+                }
+                render();
+                updateFireBreathDisplay();
+            }
+            
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        // Update Game State
+        function update() {
+            // CRITICAL: Ensure treasure always exists before anything else
+            if (!treasure) {
+                spawnTreasure();
+                console.log('Emergency treasure spawn!');
+            }
+            
+            if (dragon.nextDirection) {
+                dragon.direction = dragon.nextDirection;
+                dragon.nextDirection = null;
+            }
+            
+            const head = { ...dragon.body[0] };
+            head.x += dragon.direction.x;
+            head.y += dragon.direction.y;
+            
+            if (head.x < 0 || head.x >= CONFIG.GRID.WIDTH || head.y < 0 || head.y >= CONFIG.GRID.HEIGHT) {
+                gameOver();
+                return;
+            }
+            
+            for (let i = 1; i < dragon.body.length; i++) {
+                if (head.x === dragon.body[i].x && head.y === dragon.body[i].y) {
+                    gameOver();
+                    return;
+                }
+            }
+            
+            // Obstacle collision removed - no castle obstacles
+            
+            dragon.body.unshift(head);
+            
+            if (treasure && head.x === treasure.x && head.y === treasure.y) {
+                collectTreasure(treasure);
+            } else if (!dragon.growing) {
+                dragon.body.pop();
+            } else {
+                dragon.growing = false;
+            }
+            
+            if (crown && crown.active && head.x === crown.x && head.y === crown.y) {
+                collectCrown();
+            }
+            
+            for (let i = 0; i < portals.length; i++) {
+                if (head.x === portals[i].x && head.y === portals[i].y) {
+                    usePortal(i);
+                    break;
+                }
+            }
+            
+            if (crown && crown.active) {
+                if (Date.now() > crown.expireTime) {
+                    crown = null;
+                }
+            } else if (!crown && Date.now() > crownTimer) {
+                spawnCrown();
+            }
+            
+            updateObstacles();
+            
+            // Disabled obstacles - no castle towers
+            obstacles = [];
+            
+            if (gameState.score >= CONFIG.PORTAL.scoreThreshold && portals.length === 0) {
+                spawnPortals();
+            }
+            
+            // Update knight spawning (starts immediately!)
+            if (Date.now() > knightSpawnTimer) {
+                if (Math.random() < KNIGHT_SPAWN_CHANCE) {
+                    spawnKnight();
+                }
+                knightSpawnTimer = Date.now() + KNIGHT_SPAWN_INTERVAL;
+                console.log('Knight spawn timer reset, next spawn in', KNIGHT_SPAWN_INTERVAL / 1000, 'seconds');
+            }
+            
+            // Update knights
+            knights = knights.filter(knight => {
+                knight.frameTime++;
+                if (knight.frameTime === 60 && !knight.fired) {
+                    fireCannonball(knight);
+                    knight.fired = true;
+                }
+                return knight.frameTime < 150;
+            });
+            
+            // Update cannonballs
+            cannonballs = cannonballs.filter(ball => {
+                ball.x += ball.vx;
+                ball.y += ball.vy;
+                ball.vy += 0.15; // Gravity
+                
+                // Check collision with dragon
+                const ballGridX = Math.floor(ball.x / CONFIG.GRID.SIZE);
+                const ballGridY = Math.floor(ball.y / CONFIG.GRID.SIZE);
+                
+                for (let segment of dragon.body) {
+                    if (segment.x === ballGridX && segment.y === ballGridY) {
+                        gameOver();
+                        return false;
+                    }
+                }
+                
+                // Remove if off screen
+                return ball.x >= 0 && ball.x <= canvas.width && 
+                       ball.y >= 0 && ball.y <= canvas.height;
+            });
+            
+            particles = particles.filter(p => {
+                p.life--;
+                p.x += p.vx;
+                p.y += p.vy;
+                p.vy += 0.1;
+                return p.life > 0;
+            });
+            
+            updateHUD();
+        }
+
+        // Render Game
+        function render() {
+            // Sky background
+            const skyGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            skyGradient.addColorStop(0, '#87CEEB');
+            skyGradient.addColorStop(0.4, '#B0E0E6');
+            skyGradient.addColorStop(0.7, '#90EE90');
+            skyGradient.addColorStop(1, '#6B8E23');
+            ctx.fillStyle = skyGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw clouds (simplified for performance)
+            const time = Date.now() / 10000;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            for (let i = 0; i < 4; i++) {
+                const x = ((time * 20 + i * 220) % (canvas.width + 200)) - 100;
+                const y = 30 + i * 50;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 20, 0, Math.PI * 2);
+                ctx.arc(x + 25, y, 25, 0, Math.PI * 2);
+                ctx.arc(x + 50, y, 20, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Kingdom ground layer (bottom third)
+            const groundY = canvas.height * 0.7;
+            
+            // Grass and dirt
+            const groundGradient = ctx.createLinearGradient(0, groundY, 0, canvas.height);
+            groundGradient.addColorStop(0, '#6B8E23');
+            groundGradient.addColorStop(0.3, '#556B2F');
+            groundGradient.addColorStop(1, '#8B7355');
+            ctx.fillStyle = groundGradient;
+            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+            
+            // Stone path across the bottom
+            ctx.fillStyle = 'rgba(169, 169, 169, 0.4)';
+            ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
+            
+            // Stone tiles pattern
+            ctx.strokeStyle = 'rgba(105, 105, 105, 0.3)';
+            ctx.lineWidth = 2;
+            for (let x = 0; x < canvas.width; x += 40) {
+                for (let y = canvas.height - 80; y < canvas.height; y += 40) {
+                    ctx.strokeRect(x, y, 40, 40);
+                }
+            }
+            
+            // Village buildings at bottom (reduced for performance)
+            drawVillageBuilding(100, canvas.height - 120, 60, 80, '#8B4513');
+            drawVillageBuilding(300, canvas.height - 100, 50, 60, '#A0522D');
+            drawVillageBuilding(500, canvas.height - 130, 70, 90, '#8B4513');
+            
+            // Castle wall at the very bottom
+            ctx.fillStyle = '#696969';
+            ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+            
+            // Wall crenellations
+            ctx.fillStyle = '#808080';
+            for (let x = 0; x < canvas.width; x += 60) {
+                ctx.fillRect(x, canvas.height - 50, 30, 10);
+            }
+            
+            // Wall bricks
+            ctx.strokeStyle = '#505050';
+            ctx.lineWidth = 1;
+            for (let y = canvas.height - 40; y < canvas.height; y += 10) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+            
+            // Draw storm clouds in background (instead of castles)
+            drawStormCloud(80, canvas.height - 250, 80, 50);
+            drawStormCloud(canvas.width / 2 - 60, canvas.height - 300, 120, 70);
+            drawStormCloud(canvas.width - 140, canvas.height - 270, 100, 60);
+            drawStormCloud(200, canvas.height - 230, 70, 45);
+            drawStormCloud(canvas.width - 280, canvas.height - 310, 90, 55);
+            
+            // Draw grid (lighter so it doesn't interfere)
+            ctx.strokeStyle = 'rgba(139, 69, 19, 0.15)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= CONFIG.GRID.WIDTH; x++) {
+                ctx.beginPath();
+                ctx.moveTo(x * CONFIG.GRID.SIZE, 0);
+                ctx.lineTo(x * CONFIG.GRID.SIZE, CONFIG.GRID.HEIGHT * CONFIG.GRID.SIZE);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= CONFIG.GRID.HEIGHT; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, y * CONFIG.GRID.SIZE);
+                ctx.lineTo(CONFIG.GRID.WIDTH * CONFIG.GRID.SIZE, y * CONFIG.GRID.SIZE);
+                ctx.stroke();
+            }
+            
+            // Obstacles removed - no castle towers drawn
+            
+            // Draw portals
+            for (let portal of portals) {
+                drawPortal(portal);
+            }
+            
+            // Draw treasure
+            if (treasure) drawTreasure(treasure);
+            
+            // Draw crown
+            if (crown && crown.active) drawCrown(crown);
+            
+            // Draw knights and catapults
+            for (let knight of knights) {
+                drawKnight(knight);
+            }
+            
+            // Draw cannonballs
+            for (let ball of cannonballs) {
+                drawCannonball(ball);
+            }
+            
+            // Draw dragon
+            drawDragon();
+            
+            // Draw particles (limit rendering for performance)
+            const particleLimit = Math.min(particles.length, 50);
+            for (let i = 0; i < particleLimit; i++) {
+                const particle = particles[i];
+                ctx.fillStyle = particle.color;
+                ctx.globalAlpha = particle.life / 30;
+                ctx.fillRect(particle.x - 2, particle.y - 2, 4, 4);
+            }
+            ctx.globalAlpha = 1;
+        }
+        
+        // Draw village building
+        function drawVillageBuilding(x, y, width, height, color) {
+            // Building body
+            ctx.fillStyle = color;
+            ctx.fillRect(x, y, width, height);
+            ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, width, height);
+            
+            // Roof
+            ctx.fillStyle = '#8B0000';
+            ctx.beginPath();
+            ctx.moveTo(x - 5, y);
+            ctx.lineTo(x + width / 2, y - 20);
+            ctx.lineTo(x + width + 5, y);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            
+            // Window
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(x + width / 3, y + height / 3, width / 4, height / 4);
+            
+            // Door
+            ctx.fillStyle = '#654321';
+            ctx.fillRect(x + width / 3, y + height - height / 3, width / 3, height / 3);
+        }
+        
+        // Draw storm cloud
+        function drawStormCloud(x, y, width, height) {
+            // Dark storm cloud made of overlapping circles
+            ctx.fillStyle = 'rgba(60, 60, 70, 0.7)';
+            
+            // Main cloud body - multiple overlapping circles
+            ctx.beginPath();
+            ctx.arc(x, y, height * 0.6, 0, Math.PI * 2);
+            ctx.arc(x + width * 0.3, y - height * 0.2, height * 0.5, 0, Math.PI * 2);
+            ctx.arc(x + width * 0.6, y, height * 0.55, 0, Math.PI * 2);
+            ctx.arc(x + width * 0.8, y + height * 0.1, height * 0.45, 0, Math.PI * 2);
+            ctx.arc(x + width * 0.4, y + height * 0.15, height * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Even darker center
+            ctx.fillStyle = 'rgba(40, 40, 50, 0.5)';
+            ctx.beginPath();
+            ctx.arc(x + width * 0.4, y, height * 0.35, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Lightning flash effect (random)
+            if (Math.random() < 0.02) {
+                ctx.strokeStyle = 'rgba(255, 255, 100, 0.9)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                const lightningX = x + width * 0.5;
+                const lightningY = y + height * 0.3;
+                ctx.moveTo(lightningX, lightningY);
+                ctx.lineTo(lightningX - 5, lightningY + 15);
+                ctx.lineTo(lightningX + 3, lightningY + 15);
+                ctx.lineTo(lightningX - 2, lightningY + 30);
+                ctx.stroke();
+            }
+        }
+        
+        // Draw background castle (kept for ground castles)
+        function drawCastle(x, y, width, height) {
+            // Main tower
+            ctx.fillRect(x, y, width, height);
+            ctx.strokeRect(x, y, width, height);
+            
+            // Crenellations (top notches)
+            const notchWidth = width / 5;
+            for (let i = 0; i < 5; i += 2) {
+                ctx.fillRect(x + i * notchWidth, y - 10, notchWidth, 10);
+            }
+            
+            // Windows
+            ctx.fillStyle = 'rgba(50, 50, 50, 0.6)';
+            ctx.fillRect(x + width / 3, y + height / 3, width / 4, height / 4);
+            ctx.fillRect(x + width / 3, y + 2 * height / 3, width / 4, height / 4);
+            
+            // Door
+            ctx.fillRect(x + width / 3, y + height - height / 4, width / 3, height / 4);
+            
+            ctx.fillStyle = 'rgba(105, 105, 105, 0.4)';
+        }
+        
+        // Draw castle tower obstacle
+        function drawCastleTower(x, y, size) {
+            // Stone tower
+            const gradient = ctx.createLinearGradient(x, y, x + size, y + size);
+            gradient.addColorStop(0, '#808080');
+            gradient.addColorStop(0.5, '#A9A9A9');
+            gradient.addColorStop(1, '#696969');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(x, y, size, size);
+            
+            // Stone texture
+            ctx.strokeStyle = '#505050';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                ctx.moveTo(x, y + i * (size / 3));
+                ctx.lineTo(x + size, y + i * (size / 3));
+                ctx.stroke();
+            }
+            
+            // Crenellations on top
+            ctx.fillStyle = '#696969';
+            const notchSize = size / 3;
+            ctx.fillRect(x, y - 5, notchSize, 5);
+            ctx.fillRect(x + 2 * notchSize, y - 5, notchSize, 5);
+            
+            // Window
+            ctx.fillStyle = '#000';
+            ctx.fillRect(x + size / 3, y + size / 3, size / 3, size / 3);
+            
+            // Border
+            ctx.strokeStyle = '#404040';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, size, size);
+        }
+
+        function drawDragon() {
+            const evolution = CONFIG.EVOLUTION[dragon.evolution];
+            const time = Date.now() / 1000;
+            
+            for (let i = 0; i < dragon.body.length; i++) {
+                const segment = dragon.body[i];
+                const x = segment.x * CONFIG.GRID.SIZE;
+                const y = segment.y * CONFIG.GRID.SIZE;
+                
+                let color = evolution.color;
+                if (color === 'rainbow') {
+                    const hue = (Date.now() / 20 + i * 30) % 360;
+                    color = `hsl(${hue}, 100%, 50%)`;
+                }
+                
+                if (i === 0) {
+                    // DRAGON HEAD
+                    const centerX = x + CONFIG.GRID.SIZE / 2;
+                    const centerY = y + CONFIG.GRID.SIZE / 2;
+                    
+                    // Determine facing direction for features
+                    let angle = 0;
+                    if (dragon.direction.x === 1) angle = 0;
+                    else if (dragon.direction.x === -1) angle = Math.PI;
+                    else if (dragon.direction.y === 1) angle = Math.PI / 2;
+                    else if (dragon.direction.y === -1) angle = -Math.PI / 2;
+                    
+                    ctx.save();
+                    ctx.translate(centerX, centerY);
+                    ctx.rotate(angle);
+                    
+                    // WINGS - much bigger and more realistic
+                    const wingFlap = Math.sin(time * 8) * 0.4; // Flapping motion
+                    
+                    // Left wing (bigger and more detailed)
+                    ctx.fillStyle = color;
+                    ctx.globalAlpha = 0.7;
+                    ctx.beginPath();
+                    ctx.moveTo(-8, 0);
+                    // Main wing membrane
+                    ctx.quadraticCurveTo(-25, -20 + wingFlap * 15, -35, -10 + wingFlap * 20);
+                    ctx.quadraticCurveTo(-38, -5 + wingFlap * 18, -40, 0 + wingFlap * 15);
+                    ctx.quadraticCurveTo(-38, 5, -30, 8);
+                    ctx.quadraticCurveTo(-20, 10, -8, 8);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Wing bones/structure (left)
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-8, 0);
+                    ctx.lineTo(-35, -10 + wingFlap * 20);
+                    ctx.moveTo(-8, 0);
+                    ctx.lineTo(-30, 0 + wingFlap * 12);
+                    ctx.moveTo(-8, 0);
+                    ctx.lineTo(-25, 8 + wingFlap * 8);
+                    ctx.stroke();
+                    
+                    // Wing edge highlight
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(-25, -20 + wingFlap * 15);
+                    ctx.quadraticCurveTo(-35, -10 + wingFlap * 20, -40, 0 + wingFlap * 15);
+                    ctx.stroke();
+                    
+                    // Right wing (bigger and more detailed)
+                    ctx.fillStyle = color;
+                    ctx.globalAlpha = 0.7;
+                    ctx.beginPath();
+                    ctx.moveTo(-8, 0);
+                    // Main wing membrane
+                    ctx.quadraticCurveTo(-25, 20 - wingFlap * 15, -35, 10 - wingFlap * 20);
+                    ctx.quadraticCurveTo(-38, 5 - wingFlap * 18, -40, 0 - wingFlap * 15);
+                    ctx.quadraticCurveTo(-38, -5, -30, -8);
+                    ctx.quadraticCurveTo(-20, -10, -8, -8);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Wing bones/structure (right)
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-8, 0);
+                    ctx.lineTo(-35, 10 - wingFlap * 20);
+                    ctx.moveTo(-8, 0);
+                    ctx.lineTo(-30, 0 - wingFlap * 12);
+                    ctx.moveTo(-8, 0);
+                    ctx.lineTo(-25, -8 - wingFlap * 8);
+                    ctx.stroke();
+                    
+                    // Wing edge highlight
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(-25, 20 - wingFlap * 15);
+                    ctx.quadraticCurveTo(-35, 10 - wingFlap * 20, -40, 0 - wingFlap * 15);
+                    ctx.stroke();
+                    
+                    ctx.globalAlpha = 1;
+                    
+                    // FIRE BREATH - periodic animation
+                    const breathCycle = time % 3;
+                    if (breathCycle < 0.5) {
+                        // Draw fire breath
+                        const gradient = ctx.createLinearGradient(15, 0, 35, 0);
+                        gradient.addColorStop(0, 'rgba(255, 100, 0, 0.8)');
+                        gradient.addColorStop(0.5, 'rgba(255, 200, 0, 0.6)');
+                        gradient.addColorStop(1, 'rgba(255, 255, 0, 0)');
+                        ctx.fillStyle = gradient;
+                        
+                        // Flame shape
+                        const flameSize = 20 + Math.random() * 10;
+                        ctx.beginPath();
+                        ctx.moveTo(15, 0);
+                        ctx.quadraticCurveTo(25, -5 - Math.random() * 3, 15 + flameSize, -3);
+                        ctx.quadraticCurveTo(25, 0, 15 + flameSize, 0);
+                        ctx.quadraticCurveTo(25, 0, 15 + flameSize, 3);
+                        ctx.quadraticCurveTo(25, 5 + Math.random() * 3, 15, 0);
+                        ctx.fill();
+                        
+                        // Inner flame
+                        ctx.fillStyle = 'rgba(255, 255, 200, 0.6)';
+                        ctx.beginPath();
+                        ctx.ellipse(20, 0, 8, 4, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    // HEAD - main body
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 18, 12, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // Snout
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.ellipse(12, 0, 8, 6, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.stroke();
+                    
+                    // HORNS
+                    ctx.strokeStyle = '#8B4513';
+                    ctx.lineWidth = 3;
+                    ctx.lineCap = 'round';
+                    
+                    // Left horn
+                    ctx.beginPath();
+                    ctx.moveTo(-8, -10);
+                    ctx.quadraticCurveTo(-10, -18, -8, -22);
+                    ctx.stroke();
+                    
+                    // Right horn
+                    ctx.beginPath();
+                    ctx.moveTo(-8, 10);
+                    ctx.quadraticCurveTo(-10, 18, -8, 22);
+                    ctx.stroke();
+                    
+                    // Horn tips
+                    ctx.fillStyle = '#FFD700';
+                    ctx.beginPath();
+                    ctx.arc(-8, -22, 2, 0, Math.PI * 2);
+                    ctx.arc(-8, 22, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // EYES
+                    ctx.fillStyle = '#FFFF00';
+                    ctx.beginPath();
+                    ctx.arc(5, -5, 4, 0, Math.PI * 2);
+                    ctx.arc(5, 5, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Pupils
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(6, -5, 2, 0, Math.PI * 2);
+                    ctx.arc(6, 5, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Eye shine
+                    ctx.fillStyle = '#FFF';
+                    ctx.beginPath();
+                    ctx.arc(7, -6, 1, 0, Math.PI * 2);
+                    ctx.arc(7, 4, 1, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Nostrils
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(16, -2, 1.5, 0, Math.PI * 2);
+                    ctx.arc(16, 2, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.restore();
+                    
+                } else {
+                    // BODY SEGMENTS
+                    const isLastSegment = (i === dragon.body.length - 1);
+                    
+                    if (isLastSegment) {
+                        // TAIL TIP - arrow/spade shape
+                        ctx.fillStyle = color;
+                        
+                        // Determine tail direction (opposite of next segment)
+                        let tailAngle = 0;
+                        if (i > 0) {
+                            const prev = dragon.body[i - 1];
+                            const dx = segment.x - prev.x;
+                            const dy = segment.y - prev.y;
+                            tailAngle = Math.atan2(dy, dx);
+                        }
+                        
+                        ctx.save();
+                        ctx.translate(x + CONFIG.GRID.SIZE / 2, y + CONFIG.GRID.SIZE / 2);
+                        ctx.rotate(tailAngle);
+                        
+                        // Tail segment base (circle)
+                        ctx.beginPath();
+                        ctx.arc(0, 0, CONFIG.GRID.SIZE / 2 - 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Tail tip (spade/arrow shape)
+                        ctx.beginPath();
+                        ctx.moveTo(8, 0);
+                        ctx.lineTo(20, -6);
+                        ctx.lineTo(18, 0);
+                        ctx.lineTo(20, 6);
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        // Tail spine/ridge
+                        ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(-8, 0);
+                        ctx.lineTo(18, 0);
+                        ctx.stroke();
+                        
+                        // Tail tip highlight
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(18, -3);
+                        ctx.lineTo(20, -6);
+                        ctx.lineTo(18, 0);
+                        ctx.stroke();
+                        
+                        ctx.restore();
+                        
+                    } else {
+                        // Regular body segment
+                        ctx.fillStyle = color;
+                        ctx.beginPath();
+                        ctx.arc(x + CONFIG.GRID.SIZE / 2, y + CONFIG.GRID.SIZE / 2, CONFIG.GRID.SIZE / 2 - 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Scales texture
+                        ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                        
+                        // Belly (lighter underside)
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                        ctx.beginPath();
+                        ctx.arc(x + CONFIG.GRID.SIZE / 2, y + CONFIG.GRID.SIZE / 2, CONFIG.GRID.SIZE / 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+            }
+        }
+
+        function drawTreasure(t) {
+            const x = t.x * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2;
+            const y = t.y * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2;
+            const wobble = Math.sin(Date.now() / 200) * 2;
+            
+            // Draw glow/sparkle
+            ctx.fillStyle = t.config.color;
+            ctx.globalAlpha = 0.3;
+            ctx.beginPath();
+            ctx.arc(x, y + wobble, t.config.size + 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            
+            // Draw main treasure
+            ctx.fillStyle = t.config.color;
+            ctx.beginPath();
+            ctx.arc(x, y + wobble, t.config.size, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw emoji if available
+            if (t.config.emoji) {
+                ctx.font = `${t.config.size * 2}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(t.config.emoji, x, y + wobble);
+            }
+            
+            // Sparkle
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.beginPath();
+            ctx.arc(x - t.config.size / 2, y + wobble - t.config.size / 2, 2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawCrown(c) {
+            const x = c.x * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2;
+            const y = c.y * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2;
+            const wobble = Math.sin(Date.now() / 150) * 3;
+            const pulse = 1 + Math.sin(Date.now() / 100) * 0.2;
+            
+            ctx.save();
+            ctx.translate(x, y + wobble);
+            ctx.scale(pulse, pulse);
+            
+            ctx.fillStyle = '#FFD700';
+            ctx.beginPath();
+            ctx.moveTo(-10, 5);
+            ctx.lineTo(-8, -8);
+            ctx.lineTo(-3, -3);
+            ctx.lineTo(0, -10);
+            ctx.lineTo(3, -3);
+            ctx.lineTo(8, -8);
+            ctx.lineTo(10, 5);
+            ctx.closePath();
+            ctx.fill();
+            
+            ctx.fillStyle = '#FF0000';
+            ctx.beginPath();
+            ctx.arc(-5, -2, 2, 0, Math.PI * 2);
+            ctx.arc(0, -5, 2, 0, Math.PI * 2);
+            ctx.arc(5, -2, 2, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+            
+            ctx.strokeStyle = 'rgba(255, 215, 0, 0.5)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(x, y + wobble, 15, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        function drawPortal(p) {
+            const x = p.x * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2;
+            const y = p.y * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2;
+            const time = Date.now() / 1000;
+            
+            // Outer glow
+            const glowGradient = ctx.createRadialGradient(x, y, 0, x, y, 25);
+            glowGradient.addColorStop(0, 'rgba(255, 100, 0, 0)');
+            glowGradient.addColorStop(0.5, 'rgba(255, 69, 0, 0.3)');
+            glowGradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+            ctx.fillStyle = glowGradient;
+            ctx.beginPath();
+            ctx.arc(x, y, 25, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Fire ring - rotating flames
+            const numFlames = 12;
+            for (let i = 0; i < numFlames; i++) {
+                const angle = (i / numFlames) * Math.PI * 2 + time * 2;
+                const radius = 15 + Math.sin(time * 4 + i) * 2;
+                const flameX = x + Math.cos(angle) * radius;
+                const flameY = y + Math.sin(angle) * radius;
+                
+                // Flame colors alternate
+                const flameColor = i % 2 === 0 ? 
+                    'rgba(255, 100, 0, 0.9)' : 
+                    'rgba(255, 200, 0, 0.9)';
+                
+                ctx.fillStyle = flameColor;
+                ctx.beginPath();
+                
+                // Flame shape
+                const flameSize = 8 + Math.sin(time * 5 + i) * 2;
+                ctx.moveTo(flameX, flameY);
+                ctx.quadraticCurveTo(
+                    flameX + Math.cos(angle) * flameSize * 0.5,
+                    flameY + Math.sin(angle) * flameSize * 0.5 - flameSize,
+                    flameX + Math.cos(angle) * 3,
+                    flameY + Math.sin(angle) * 3
+                );
+                ctx.closePath();
+                ctx.fill();
+            }
+            
+            // Inner ring (stone arch)
+            ctx.strokeStyle = '#8B4513';
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.arc(x, y, 12, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Inner ring highlight
+            ctx.strokeStyle = 'rgba(139, 69, 19, 0.5)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, 13, Math.PI * 1.2, Math.PI * 1.8);
+            ctx.stroke();
+            
+            // Portal center (swirling darkness)
+            const centerGradient = ctx.createRadialGradient(x, y, 0, x, y, 10);
+            centerGradient.addColorStop(0, 'rgba(139, 0, 0, 1)');
+            centerGradient.addColorStop(0.5, 'rgba(0, 0, 0, 0.8)');
+            centerGradient.addColorStop(1, 'rgba(255, 69, 0, 0.3)');
+            ctx.fillStyle = centerGradient;
+            ctx.beginPath();
+            ctx.arc(x, y, 10, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Swirl effect
+            ctx.strokeStyle = 'rgba(255, 140, 0, 0.4)';
+            ctx.lineWidth = 2;
+            for (let i = 0; i < 3; i++) {
+                const spiralAngle = time * 3 + i * (Math.PI * 2 / 3);
+                ctx.beginPath();
+                for (let t = 0; t < Math.PI * 2; t += 0.2) {
+                    const spiralRadius = 2 + t * 2;
+                    const spiralX = x + Math.cos(spiralAngle + t) * spiralRadius;
+                    const spiralY = y + Math.sin(spiralAngle + t) * spiralRadius;
+                    if (t === 0) {
+                        ctx.moveTo(spiralX, spiralY);
+                    } else {
+                        ctx.lineTo(spiralX, spiralY);
+                    }
+                }
+                ctx.stroke();
+            }
+            
+            // Spark particles
+            for (let i = 0; i < 5; i++) {
+                const sparkAngle = time * 4 + i * (Math.PI * 2 / 5);
+                const sparkRadius = 18 + Math.sin(time * 6 + i) * 4;
+                const sparkX = x + Math.cos(sparkAngle) * sparkRadius;
+                const sparkY = y + Math.sin(sparkAngle) * sparkRadius;
+                
+                ctx.fillStyle = 'rgba(255, 255, 100, 0.8)';
+                ctx.beginPath();
+                ctx.arc(sparkX, sparkY, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        function spawnTreasure() {
+            let position;
+            let attempts = 0;
+            
+            do {
+                position = {
+                    x: Math.floor(Math.random() * CONFIG.GRID.WIDTH),
+                    y: Math.floor(Math.random() * CONFIG.GRID.HEIGHT)
+                };
+                attempts++;
+            } while (isPositionOccupied(position) && attempts < 100);
+            
+            // FORCE SPAWN even if position is occupied - treasure must exist!
+            if (attempts >= 100) {
+                console.warn('Could not find empty position, spawning treasure anyway');
+                position = {
+                    x: Math.floor(Math.random() * CONFIG.GRID.WIDTH),
+                    y: Math.floor(Math.random() * CONFIG.GRID.HEIGHT)
+                };
+            }
+            
+            const roll = Math.random();
+            let cumulative = 0;
+            let treasureConfig = CONFIG.TREASURE[0];
+            
+            for (let t of CONFIG.TREASURE) {
+                cumulative += t.rate;
+                if (roll <= cumulative) {
+                    treasureConfig = t;
+                    break;
+                }
+            }
+            
+            treasure = {
+                x: position.x,
+                y: position.y,
+                config: treasureConfig
+            };
+            
+            console.log('Treasure spawned at:', position.x, position.y, treasureConfig.emoji);
+        }
+
+        function spawnCrown() {
+            let position;
+            let attempts = 0;
+            
+            do {
+                position = {
+                    x: Math.floor(Math.random() * CONFIG.GRID.WIDTH),
+                    y: Math.floor(Math.random() * CONFIG.GRID.HEIGHT)
+                };
+                attempts++;
+            } while (isPositionOccupied(position) && attempts < 100);
+            
+            if (attempts >= 100) return;
+            
+            crown = {
+                x: position.x,
+                y: position.y,
+                active: true,
+                spawnTime: Date.now(),
+                expireTime: Date.now() + CONFIG.CROWN.duration
+            };
+        }
+
+        function spawnPortals() {
+            portals = [];
+            
+            for (let i = 0; i < 2; i++) {
+                let position;
+                let attempts = 0;
+                
+                do {
+                    position = {
+                        x: Math.floor(Math.random() * CONFIG.GRID.WIDTH),
+                        y: Math.floor(Math.random() * CONFIG.GRID.HEIGHT)
+                    };
+                    attempts++;
+                } while (isPositionOccupied(position) && attempts < 100);
+                
+                if (attempts < 100) {
+                    portals.push(position);
+                }
+            }
+        }
+
+        function updateObstacles() {
+            const targetObstacles = Math.floor(gameState.score / 100);
+            
+            while (obstacles.length < targetObstacles && obstacles.length < 20) {
+                let position;
+                let attempts = 0;
+                
+                do {
+                    position = {
+                        x: Math.floor(Math.random() * CONFIG.GRID.WIDTH),
+                        y: Math.floor(Math.random() * CONFIG.GRID.HEIGHT)
+                    };
+                    attempts++;
+                } while (isPositionOccupied(position) && attempts < 100);
+                
+                if (attempts < 100) {
+                    obstacles.push(position);
+                }
+            }
+        }
+
+        function isPositionOccupied(pos) {
+            for (let segment of dragon.body) {
+                if (segment.x === pos.x && segment.y === pos.y) return true;
+            }
+            if (treasure && treasure.x === pos.x && treasure.y === pos.y) return true;
+            if (crown && crown.x === pos.x && crown.y === pos.y) return true;
+            for (let obstacle of obstacles) {
+                if (obstacle.x === pos.x && obstacle.y === pos.y) return true;
+            }
+            for (let portal of portals) {
+                if (portal.x === pos.x && portal.y === pos.y) return true;
+            }
+            return false;
+        }
+
+        function collectTreasure(t) {
+            gameState.score += t.config.points;
+            dragon.growing = true;
+            
+            createParticles(t.x * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2, 
+                            t.y * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2, 
+                            t.config.color, 8);
+            
+            checkEvolution();
+            
+            if (gameState.gameSpeed > CONFIG.SPEED.MIN) {
+                gameState.gameSpeed = Math.max(CONFIG.SPEED.MIN, gameState.gameSpeed - CONFIG.SPEED.DECREMENT);
+            }
+            
+            // Spawn new treasure BEFORE clearing old one to ensure continuous supply
+            const oldTreasure = treasure;
+            spawnTreasure();
+            
+            // Verify treasure was successfully spawned
+            if (!treasure) {
+                console.error('Failed to spawn treasure!');
+                spawnTreasure(); // Try again
+            }
+            
+            updateHUD();
+        }
+
+        function collectCrown() {
+            gameState.score += CONFIG.CROWN.points;
+            
+            createParticles(crown.x * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2,
+                            crown.y * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2,
+                            '#FFD700', 20);
+            
+            crown = null;
+            crownTimer = Date.now() + CONFIG.CROWN.spawnMin + Math.random() * (CONFIG.CROWN.spawnMax - CONFIG.CROWN.spawnMin);
+            
+            checkEvolution();
+            updateHUD();
+        }
+
+        function usePortal(portalIndex) {
+            const otherIndex = portalIndex === 0 ? 1 : 0;
+            if (portals[otherIndex]) {
+                dragon.body[0] = { ...portals[otherIndex] };
+                
+                createParticles(portals[portalIndex].x * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2,
+                               portals[portalIndex].y * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2,
+                               '#FF4500', 15);
+                createParticles(portals[otherIndex].x * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2,
+                               portals[otherIndex].y * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2,
+                               '#FF4500', 15);
+                
+                setTimeout(() => spawnPortals(), CONFIG.PORTAL.cooldownAfterUse);
+                portals = [];
+            }
+        }
+
+        function checkEvolution() {
+            let newEvolution = dragon.evolution;
+            
+            for (let i = 0; i < CONFIG.EVOLUTION.length; i++) {
+                const evo = CONFIG.EVOLUTION[i];
+                if (evo.max && gameState.score <= evo.max) {
+                    newEvolution = i;
+                    break;
+                } else if (evo.min && gameState.score >= evo.min) {
+                    newEvolution = i;
+                }
+            }
+            
+            if (newEvolution !== dragon.evolution) {
+                dragon.evolution = newEvolution;
+                showEvolution();
+            }
+        }
+
+        function showEvolution() {
+            const banner = document.createElement('div');
+            banner.id = 'evolutionBanner';
+            banner.textContent = 'EVOLUTION!';
+            document.getElementById('gameContainer').appendChild(banner);
+            
+            setTimeout(() => {
+                banner.remove();
+            }, 1000);
+        }
+
+        // Spawn Knight with Catapult
+        function spawnKnight() {
+            const side = Math.random() > 0.5 ? 'left' : 'right';
+            const y = Math.random() * (canvas.height - 200) + 100;
+            
+            knights.push({
+                x: side === 'left' ? -80 : canvas.width + 80,
+                y: y,
+                side: side,
+                frameTime: 0,
+                fired: false
+            });
+            
+            console.log('Knight spawned on', side, 'side at y:', y);
+        }
+        
+        // Fire Cannonball from Knight
+        function fireCannonball(knight) {
+            const head = dragon.body[0];
+            const targetX = head.x * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2;
+            const targetY = head.y * CONFIG.GRID.SIZE + CONFIG.GRID.SIZE / 2;
+            
+            const dx = targetX - knight.x;
+            const dy = targetY - knight.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            const speed = 8;
+            cannonballs.push({
+                x: knight.x,
+                y: knight.y - 30,
+                vx: (dx / distance) * speed,
+                vy: (dy / distance) * speed - 2,
+                size: 12
+            });
+            
+            for (let i = 0; i < 10; i++) {
+                particles.push({
+                    x: knight.x,
+                    y: knight.y - 30,
+                    vx: (Math.random() - 0.5) * 3,
+                    vy: (Math.random() - 0.5) * 3 - 1,
+                    life: 20,
+                    color: '#888'
+                });
+            }
+        }
+        
+        // Draw Knight with Catapult
+        function drawKnight(knight) {
+            const x = knight.x;
+            const y = knight.y;
+            const loadingProgress = Math.min(knight.frameTime / 60, 1);
+            
+            ctx.save();
+            
+            if (knight.side === 'right') {
+                ctx.translate(x, 0);
+                ctx.scale(-1, 1);
+                ctx.translate(-x, 0);
+            }
+            
+            // Catapult base
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(x - 30, y, 60, 15);
+            ctx.fillRect(x - 10, y - 40, 20, 40);
+            
+            // Catapult arm
+            const armAngle = -Math.PI / 4 * loadingProgress;
+            ctx.save();
+            ctx.translate(x, y - 40);
+            ctx.rotate(armAngle);
+            
+            ctx.strokeStyle = '#654321';
+            ctx.lineWidth = 8;
+            ctx.beginPath();
+            ctx.moveTo(0, 0);
+            ctx.lineTo(0, -40);
+            ctx.stroke();
+            
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(-8, -50, 16, 10);
+            
+            if (!knight.fired) {
+                ctx.fillStyle = '#333';
+                ctx.beginPath();
+                ctx.arc(0, -45, 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.restore();
+            
+            // Knight body
+            ctx.fillStyle = '#C0C0C0';
+            ctx.fillRect(x - 40, y - 25, 15, 25);
+            
+            // Helmet
+            ctx.fillStyle = '#FFD700';
+            ctx.fillRect(x - 40, y - 40, 15, 15);
+            
+            // Plume
+            ctx.fillStyle = '#FF0000';
+            ctx.fillRect(x - 38, y - 50, 3, 10);
+            ctx.fillRect(x - 34, y - 48, 3, 8);
+            ctx.fillRect(x - 30, y - 50, 3, 10);
+            
+            // Shield
+            ctx.fillStyle = '#0000CD';
+            ctx.beginPath();
+            ctx.arc(x - 50, y - 15, 8, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = '#FFD700';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x - 50, y - 20);
+            ctx.lineTo(x - 50, y - 10);
+            ctx.moveTo(x - 55, y - 15);
+            ctx.lineTo(x - 45, y - 15);
+            ctx.stroke();
+            
+            ctx.restore();
+            
+            // Warning
+            if (knight.frameTime < 60 && knight.frameTime % 20 < 10) {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.7)';
+                ctx.font = '30px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('⚠️', x, y - 80);
+            }
+        }
+        
+        // Draw Cannonball
+        function drawCannonball(ball) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.beginPath();
+            ctx.ellipse(ball.x, ball.y + 5, ball.size * 0.8, ball.size * 0.4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            const gradient = ctx.createRadialGradient(
+                ball.x - ball.size / 3, ball.y - ball.size / 3, ball.size / 4,
+                ball.x, ball.y, ball.size
+            );
+            gradient.addColorStop(0, '#555');
+            gradient.addColorStop(1, '#222');
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.size, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.arc(ball.x - ball.size / 3, ball.y - ball.size / 3, ball.size / 3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = 'rgba(100, 100, 100, 0.4)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(ball.x - ball.vx * 2, ball.y - ball.vy * 2);
+            ctx.lineTo(ball.x, ball.y);
+            ctx.stroke();
+        }
+
+        function createParticles(x, y, color, count) {
+            for (let i = 0; i < count; i++) {
+                particles.push({
+                    x: x,
+                    y: y,
+                    vx: (Math.random() - 0.5) * 4,
+                    vy: (Math.random() - 0.5) * 4 - 2,
+                    life: 30,
+                    color: color
+                });
+            }
+        }
+
+        function updateFireBreathDisplay() {
+            if (fireBreathReady) {
+                document.getElementById('fireBreathFill').style.width = '100%';
+            } else {
+                const remaining = fireBreathCooldown - Date.now();
+                const percent = Math.max(0, 100 - (remaining / CONFIG.FIRE_BREATH.cooldown * 100));
+                document.getElementById('fireBreathFill').style.width = percent + '%';
+            }
+        }
+
+        function updateHUD() {
+            document.getElementById('lengthDisplay').textContent = dragon.body.length;
+            document.getElementById('scoreDisplay').textContent = gameState.score;
+            document.getElementById('highScoreDisplay').textContent = gameState.highScore;
+            document.getElementById('evolutionDisplay').textContent = CONFIG.EVOLUTION[dragon.evolution].name;
+        }
+
+        function gameOver() {
+            gameState.playing = false;
+            
+            // Check for new high score
+            let isNewHighScore = false;
+            if (gameState.score > gameState.highScore) {
+                gameState.highScore = gameState.score;
+                localStorage.setItem('dragonQuestHighScore', gameState.highScore);
+                isNewHighScore = true;
+            }
+            
+            // Save to leaderboard if score is good enough
+            if (gameState.score > 0) {
+                const leaderboard = JSON.parse(localStorage.getItem('dragonQuestLeaderboard') || '[]');
+                
+                // Check if this score makes the top 5
+                if (leaderboard.length < 5 || gameState.score > leaderboard[leaderboard.length - 1].score) {
+                    let playerName = prompt('🎉 Great score! Enter your name for the Hall of Kings:', 'Dragon Lord');
+                    if (!playerName || playerName.trim() === '') {
+                        playerName = 'Anonymous Dragon';
+                    }
+                    
+                    // Add new entry
+                    leaderboard.push({
+                        name: playerName.substring(0, 15),
+                        score: gameState.score,
+                        date: new Date().toLocaleDateString()
+                    });
+                    
+                    // Sort by score (highest first)
+                    leaderboard.sort((a, b) => b.score - a.score);
+                    
+                    // Keep only top 5
+                    leaderboard.splice(5);
+                    
+                    // Save to localStorage
+                    localStorage.setItem('dragonQuestLeaderboard', JSON.stringify(leaderboard));
+                }
+            }
+            
+            const timeSeconds = Math.floor((Date.now() - gameState.startTime) / 1000);
+            const minutes = Math.floor(timeSeconds / 60);
+            const seconds = timeSeconds % 60;
+            
+            document.getElementById('finalScore').textContent = gameState.score;
+            document.getElementById('finalLength').textContent = dragon.body.length;
+            document.getElementById('finalEvolution').textContent = CONFIG.EVOLUTION[dragon.evolution].name;
+            document.getElementById('finalTime').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById('gameOver').classList.remove('hidden');
+            document.getElementById('hud').classList.add('hidden');
+        }
+
+        // Keyboard Controls
+        document.addEventListener('keydown', (e) => {
+            if (!gameState.playing || gameState.paused) return;
+            
+            const key = e.key.toLowerCase();
+            
+            if ((key === 'arrowup' || key === 'w') && dragon.direction.y === 0) {
+                dragon.nextDirection = { x: 0, y: -1 };
+            } else if ((key === 'arrowdown' || key === 's') && dragon.direction.y === 0) {
+                dragon.nextDirection = { x: 0, y: 1 };
+            } else if ((key === 'arrowleft' || key === 'a') && dragon.direction.x === 0) {
+                dragon.nextDirection = { x: -1, y: 0 };
+            } else if ((key === 'arrowright' || key === 'd') && dragon.direction.x === 0) {
+                dragon.nextDirection = { x: 1, y: 0 };
+            }
+            
+            if (key === ' ') {
+                e.preventDefault();
+            }
+            
+            if (key === 'p') {
+                gameState.paused = !gameState.paused;
+            }
+        });
+
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
