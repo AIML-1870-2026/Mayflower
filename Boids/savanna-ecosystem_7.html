@@ -1,0 +1,1495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>African Savanna Ecosystem - Interactive Boids Lab</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(180deg, #87ceeb 0%, #d4a574 100%);
+            color: #2c1810;
+            overflow: hidden;
+            height: 100vh;
+        }
+        
+        #container {
+            display: flex;
+            height: 100vh;
+        }
+        
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        canvas {
+            background: linear-gradient(180deg, #e8d4a0 0%, #c9a66b 50%, #8b7355 100%);
+            border: 4px solid #5d4e37;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            cursor: crosshair;
+        }
+        
+        #controls-panel {
+            width: 350px;
+            background: rgba(92, 64, 51, 0.95);
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: -5px 0 20px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #f4a460;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        h2 {
+            font-size: 18px;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            color: #daa520;
+            border-bottom: 2px solid #8b7355;
+            padding-bottom: 5px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+            background: rgba(139, 115, 85, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #8b7355;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #f5deb3;
+            font-size: 13px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #5d4e37;
+            outline: none;
+            margin-bottom: 5px;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #daa520;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #daa520;
+            cursor: pointer;
+            border: none;
+        }
+        
+        .value-display {
+            display: inline-block;
+            background: rgba(218, 165, 32, 0.2);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: #fff;
+            min-width: 50px;
+            text-align: center;
+        }
+        
+        button {
+            padding: 10px 15px;
+            margin: 5px 5px 5px 0;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 13px;
+            transition: all 0.2s;
+            box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 12px rgba(0,0,0,0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .preset-btn {
+            background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%);
+            color: white;
+        }
+        
+        .control-btn {
+            background: linear-gradient(135deg, #228b22 0%, #32cd32 100%);
+            color: white;
+        }
+        
+        .danger-btn {
+            background: linear-gradient(135deg, #8b0000 0%, #dc143c 100%);
+            color: white;
+        }
+        
+        .action-btn {
+            background: linear-gradient(135deg, #ff8c00 0%, #ffa500 100%);
+            color: white;
+        }
+        
+        .stats {
+            background: rgba(139, 115, 85, 0.5);
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border: 2px solid #daa520;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 13px;
+            color: #f5deb3;
+        }
+        
+        .stat-value {
+            font-weight: 700;
+            color: #ffd700;
+        }
+        
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 8px 0;
+        }
+        
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        
+        .info-box {
+            background: rgba(218, 165, 32, 0.2);
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 12px;
+            border-left: 3px solid #daa520;
+            color: #f5deb3;
+        }
+        
+        .species-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 5px;
+            vertical-align: middle;
+        }
+        
+        .legend {
+            background: rgba(139, 115, 85, 0.3);
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            font-size: 12px;
+            color: #f5deb3;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="canvas-container">
+            <canvas id="canvas"></canvas>
+        </div>
+        
+        <div id="controls-panel">
+            <h1>🦁 Savanna Ecosystem Lab</h1>
+            <div class="info-box">
+                Explore African wildlife flocking behavior! Control environmental factors and observe how herds respond.
+            </div>
+            
+            <h2>📊 Live Statistics</h2>
+            <div class="stats">
+                <div class="stat-item">
+                    <span>FPS:</span>
+                    <span class="stat-value" id="fps">60</span>
+                </div>
+                <div class="stat-item">
+                    <span>Gazelles:</span>
+                    <span class="stat-value" id="gazelle-count">15</span>
+                </div>
+                <div class="stat-item">
+                    <span>Zebras:</span>
+                    <span class="stat-value" id="zebra-count">10</span>
+                </div>
+                <div class="stat-item">
+                    <span>Predators:</span>
+                    <span class="stat-value" id="predator-count">0</span>
+                </div>
+                <div class="stat-item">
+                    <span>Avg Neighbors:</span>
+                    <span class="stat-value" id="avg-neighbors">0.0</span>
+                </div>
+            </div>
+            
+            <h2>🎮 Simulation Controls</h2>
+            <div class="control-group">
+                <button class="control-btn" id="pause-btn">⏸️ Pause</button>
+                <button class="control-btn" id="reset-btn">🔄 Reset</button>
+                <button class="control-btn" id="toggle-trails-btn">👣 Toggle Trails</button>
+            </div>
+            
+            <h2>🌍 Ecosystem Behaviors</h2>
+            <div class="control-group">
+                <button class="preset-btn" id="peaceful-btn">☀️ Peaceful Grazing</button>
+                <button class="preset-btn" id="migration-btn">🏃 Migration Mode</button>
+                <button class="preset-btn" id="alert-btn">⚠️ High Alert</button>
+            </div>
+            
+            <h2>🎯 Flocking Parameters</h2>
+            
+            <div class="control-group">
+                <label>Separation Weight: <span class="value-display" id="sep-val">2.0</span></label>
+                <input type="range" id="separation" min="0" max="3" step="0.1" value="2.0">
+                <small style="color: #f5deb3;">How much animals avoid crowding</small>
+            </div>
+            
+            <div class="control-group">
+                <label>Alignment Weight: <span class="value-display" id="align-val">3.0</span></label>
+                <input type="range" id="alignment" min="0" max="5" step="0.1" value="3.0">
+                <small style="color: #f5deb3;">How much they match herd direction</small>
+            </div>
+            
+            <div class="control-group">
+                <label>Cohesion Weight: <span class="value-display" id="coh-val">2.5</span></label>
+                <input type="range" id="cohesion" min="0" max="5" step="0.1" value="2.5">
+                <small style="color: #f5deb3;">How much they stay together</small>
+            </div>
+            
+            <div class="control-group">
+                <label>Neighbor Radius: <span class="value-display" id="radius-val">120</span></label>
+                <input type="range" id="neighbor-radius" min="20" max="200" step="5" value="120">
+                <small style="color: #f5deb3;">Perception distance for neighbors</small>
+            </div>
+            
+            <div class="control-group">
+                <label>Max Speed: <span class="value-display" id="speed-val">2</span></label>
+                <input type="range" id="max-speed" min="1" max="5" step="0.5" value="2">
+                <small style="color: #f5deb3;">Maximum movement speed</small>
+            </div>
+            
+            <h2>🦁 Interactive Features</h2>
+            
+            <div class="control-group">
+                <button class="action-btn" id="follow-mouse-btn">🖱️ Follow Mouse</button>
+                <small style="color: #f5deb3;">Click to make animals follow your cursor!</small>
+            </div>
+            
+            <div class="control-group">
+                <button class="action-btn" id="add-predator-btn">🦁 Add Predator</button>
+                <button class="action-btn" id="remove-predator-btn">➖ Remove Predator</button>
+                <small style="color: #f5deb3;">Click canvas to place. Prey flee from predators!</small>
+            </div>
+            
+            <div class="control-group">
+                <button class="action-btn" id="add-leader-btn">⭐ Tag Leader</button>
+                <small style="color: #f5deb3;">Click a gazelle to make it a leader. Others follow!</small>
+            </div>
+            
+            <div class="control-group">
+                <button class="action-btn" id="add-obstacle-btn">🌳 Add Tree</button>
+                <button class="action-btn" id="remove-obstacle-btn">🗑️ Remove Tree</button>
+                <small style="color: #f5deb3;">Click to place/remove obstacles</small>
+            </div>
+            
+            <h2>⚙️ Display Options</h2>
+            
+            <div class="control-group">
+                <div class="checkbox-group">
+                    <input type="checkbox" id="watering-hole-toggle" checked>
+                    <label for="watering-hole-toggle" style="margin: 0;">Show Watering Hole</label>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="show-trails" checked>
+                    <label for="show-trails" style="margin: 0;">Show Footprint Trails</label>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="show-radius">
+                    <label for="show-radius" style="margin: 0;">Show Perception Radius</label>
+                </div>
+                
+                <div class="checkbox-group">
+                    <input type="checkbox" id="wrap-boundary" checked>
+                    <label for="wrap-boundary" style="margin: 0;">Wrap Boundaries</label>
+                </div>
+                <small style="color: #f5deb3;">Toggle: wrapping vs solid boundaries</small>
+            </div>
+            
+            <div class="legend">
+                <h3 style="color: #daa520; font-size: 14px; margin-bottom: 8px;">Legend</h3>
+                <div class="legend-item">
+                    <span class="species-indicator" style="background: #d4a574;"></span>
+                    <span>Gazelle (Fast, nervous)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="species-indicator" style="background: #000;"></span>
+                    <span>Zebra (Slower, grouped)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="species-indicator" style="background: #8b4513;"></span>
+                    <span>🦁 Predator (Hunts prey)</span>
+                </div>
+                <div class="legend-item">
+                    <span class="species-indicator" style="background: #ffd700;"></span>
+                    <span>⭐ Leader (Influences herd)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Set canvas size
+        function resizeCanvas() {
+            const container = document.getElementById('canvas-container');
+            const maxWidth = container.clientWidth - 40;
+            const maxHeight = container.clientHeight - 40;
+            canvas.width = Math.min(1000, maxWidth);
+            canvas.height = Math.min(700, maxHeight);
+        }
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
+        
+        // Boid class
+        class Boid {
+            constructor(x, y, species = 'gazelle') {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 2;
+                this.vy = (Math.random() - 0.5) * 2;
+                this.species = species;
+                this.isLeader = false;
+                this.trail = [];
+                this.trailMaxLength = 30;
+                
+                // Species-specific properties
+                if (species === 'gazelle') {
+                    this.color = '#d4a574';
+                    this.size = 6;
+                    this.maxSpeed = 2.5;
+                    this.separationMult = 1.4;
+                    this.alignmentMult = 2.2;  // Very high alignment
+                    this.cohesionMult = 1.8;  // Strong cohesion
+                } else if (species === 'zebra') {
+                    this.color = '#000';
+                    this.size = 8;
+                    this.maxSpeed = 1.8;
+                    this.separationMult = 1.2;
+                    this.alignmentMult = 2.5;  // Extremely high alignment
+                    this.cohesionMult = 2.0;  // Very strong cohesion
+                }
+            }
+            
+            update(boids, predators, obstacles, params, mousePos) {
+                let separation = { x: 0, y: 0 };
+                let alignment = { x: 0, y: 0 };
+                let cohesion = { x: 0, y: 0 };
+                let neighborCount = 0;
+                
+                // Follow mouse if enabled
+                if (params.followMouse && mousePos.active) {
+                    const dx = mousePos.x - this.x;
+                    const dy = mousePos.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist > 0) {
+                        const followForce = 0.5;
+                        this.vx += (dx / dist) * followForce;
+                        this.vy += (dy / dist) * followForce;
+                    }
+                }
+                
+                // Find neighbors of same species
+                for (let other of boids) {
+                    if (other === this) continue;
+                    if (other.species !== this.species) continue;
+                    
+                    const dx = other.x - this.x;
+                    const dy = other.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < params.neighborRadius && dist > 0) {
+                        neighborCount++;
+                        
+                        // Separation
+                        separation.x -= dx / dist;
+                        separation.y -= dy / dist;
+                        
+                        // Alignment
+                        alignment.x += other.vx;
+                        alignment.y += other.vy;
+                        
+                        // Cohesion
+                        cohesion.x += dx;
+                        cohesion.y += dy;
+                    }
+                }
+                
+                if (neighborCount > 0) {
+                    alignment.x /= neighborCount;
+                    alignment.y /= neighborCount;
+                    cohesion.x /= neighborCount;
+                    cohesion.y /= neighborCount;
+                }
+                
+                this.neighborCount = neighborCount;
+                
+                // Apply flocking forces with species multipliers
+                this.vx += separation.x * params.separation * this.separationMult;
+                this.vy += separation.y * params.separation * this.separationMult;
+                this.vx += alignment.x * params.alignment * this.alignmentMult * 0.15;  // Very strong alignment for murmurations
+                this.vy += alignment.y * params.alignment * this.alignmentMult * 0.15;
+                this.vx += cohesion.x * params.cohesion * this.cohesionMult * 0.025;  // Strong cohesion
+                this.vy += cohesion.y * params.cohesion * this.cohesionMult * 0.025;
+                
+                // Flee from predators
+                for (let predator of predators) {
+                    const dx = this.x - predator.x;
+                    const dy = this.y - predator.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const fleeRadius = 150;
+                    
+                    if (dist < fleeRadius && dist > 0) {
+                        const fleeForce = (fleeRadius - dist) / fleeRadius * 5;
+                        this.vx += (dx / dist) * fleeForce;
+                        this.vy += (dy / dist) * fleeForce;
+                    }
+                }
+                
+                // Follow leader
+                const leader = boids.find(b => b.isLeader && b.species === this.species);
+                if (leader && leader !== this) {
+                    const dx = leader.x - this.x;
+                    const dy = leader.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist > 0 && dist < params.neighborRadius * 2) {
+                        this.vx += (dx / dist) * 0.3;
+                        this.vy += (dy / dist) * 0.3;
+                    }
+                }
+                
+                // Avoid obstacles
+                for (let obstacle of obstacles) {
+                    const dx = this.x - obstacle.x;
+                    const dy = this.y - obstacle.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const avoidRadius = obstacle.radius + 40; // Larger avoidance radius
+                    
+                    if (dist < avoidRadius && dist > 0) {
+                        const avoidForce = (avoidRadius - dist) / avoidRadius * 6; // Stronger force
+                        this.vx += (dx / dist) * avoidForce;
+                        this.vy += (dy / dist) * avoidForce;
+                    }
+                }
+                
+                // Attraction to watering hole (but avoid going IN the water)
+                if (params.showWateringHole && wateringHole) {
+                    const dx = wateringHole.x - this.x;
+                    const dy = wateringHole.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const attractRadius = 250;  // Animals are attracted from this distance
+                    const avoidRadius = wateringHole.radius + 25; // Keep this distance from water edge
+                    
+                    // Strongly avoid going into the water
+                    if (dist < avoidRadius && dist > 0) {
+                        const avoidForce = (avoidRadius - dist) / avoidRadius * 6;  // Strong avoidance
+                        this.vx += (-dx / dist) * avoidForce;
+                        this.vy += (-dy / dist) * avoidForce;
+                    }
+                    // Gentle attraction to watering hole area (but not too close)
+                    else if (dist < attractRadius && dist > avoidRadius + 20) {
+                        const attractForce = 0.15;
+                        this.vx += (dx / dist) * attractForce;
+                        this.vy += (dy / dist) * attractForce;
+                    }
+                }
+                
+                // Limit speed and maintain consistent speed for murmuration-like flow
+                const currentMaxSpeed = this.maxSpeed * params.maxSpeed;
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                
+                // Maintain consistent speed like starlings - key to murmuration behavior
+                const targetSpeed = currentMaxSpeed * 0.85;  // Maintain 85% of max speed
+                if (speed > 0) {
+                    if (speed < targetSpeed * 0.5) {
+                        // Boost very slow boids
+                        const speedBoost = (targetSpeed - speed) * 0.2;
+                        this.vx += (this.vx / speed) * speedBoost;
+                        this.vy += (this.vy / speed) * speedBoost;
+                    } else if (speed < targetSpeed) {
+                        // Gently speed up
+                        const speedBoost = (targetSpeed - speed) * 0.1;
+                        this.vx += (this.vx / speed) * speedBoost;
+                        this.vy += (this.vy / speed) * speedBoost;
+                    } else if (speed > currentMaxSpeed) {
+                        // Cap max speed
+                        this.vx = (this.vx / speed) * currentMaxSpeed;
+                        this.vy = (this.vy / speed) * currentMaxSpeed;
+                    }
+                }
+                
+                // Update position
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                // Boundary handling
+                if (params.wrapBoundary) {
+                    if (this.x < 0) this.x = canvas.width;
+                    if (this.x > canvas.width) this.x = 0;
+                    if (this.y < 0) this.y = canvas.height;
+                    if (this.y > canvas.height) this.y = 0;
+                } else {
+                    const margin = 50;
+                    if (this.x < margin) this.vx += 0.5;
+                    if (this.x > canvas.width - margin) this.vx -= 0.5;
+                    if (this.y < margin) this.vy += 0.5;
+                    if (this.y > canvas.height - margin) this.vy -= 0.5;
+                    
+                    this.x = Math.max(0, Math.min(canvas.width, this.x));
+                    this.y = Math.max(0, Math.min(canvas.height, this.y));
+                }
+                
+                // Update trail
+                if (params.showTrails) {
+                    this.trail.push({ x: this.x, y: this.y });
+                    if (this.trail.length > this.trailMaxLength) {
+                        this.trail.shift();
+                    }
+                }
+            }
+            
+            draw(ctx, params) {
+                // Draw trail (footprints)
+                if (params.showTrails && this.trail.length > 1) {
+                    for (let i = 0; i < this.trail.length - 1; i++) {
+                        const alpha = (i / this.trail.length) * 0.6;  // Increased from 0.3 for more visible trails
+                        ctx.fillStyle = `rgba(139, 90, 43, ${alpha})`;
+                        const point = this.trail[i];
+                        
+                        // Draw footprints more frequently (every 2 frames instead of 3)
+                        if (i % 2 === 0) {
+                            ctx.beginPath();
+                            ctx.arc(point.x, point.y, 2.5, 0, Math.PI * 2);  // Slightly larger (was 2)
+                            ctx.fill();
+                        }
+                    }
+                }
+                
+                // Draw perception radius
+                if (params.showRadius) {
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, params.neighborRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                // Draw boid based on species
+                const angle = Math.atan2(this.vy, this.vx);
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(angle);
+                
+                if (this.species === 'gazelle') {
+                    // Gazelle body
+                    ctx.fillStyle = '#d4a574';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, this.size * 2, this.size * 1.2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Head
+                    ctx.beginPath();
+                    ctx.ellipse(this.size * 2.2, 0, this.size * 1.2, this.size * 0.9, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Neck
+                    ctx.fillRect(this.size * 0.8, -this.size * 0.5, this.size * 1.4, this.size);
+                    
+                    // Horns
+                    ctx.strokeStyle = '#5d4e37';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(this.size * 2.5, -this.size * 0.5);
+                    ctx.lineTo(this.size * 2.8, -this.size * 1.5);
+                    ctx.moveTo(this.size * 2.5, this.size * 0.5);
+                    ctx.lineTo(this.size * 2.8, this.size * 1.5);
+                    ctx.stroke();
+                    
+                    // Legs
+                    ctx.strokeStyle = '#d4a574';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    // Front legs
+                    ctx.moveTo(this.size * 1.2, this.size * 0.8);
+                    ctx.lineTo(this.size * 1.2, this.size * 2);
+                    ctx.moveTo(this.size * 0.8, this.size * 0.8);
+                    ctx.lineTo(this.size * 0.8, this.size * 2);
+                    // Back legs
+                    ctx.moveTo(-this.size * 0.8, this.size * 0.8);
+                    ctx.lineTo(-this.size * 0.8, this.size * 2);
+                    ctx.moveTo(-this.size * 1.2, this.size * 0.8);
+                    ctx.lineTo(-this.size * 1.2, this.size * 2);
+                    ctx.stroke();
+                    
+                    // Eye
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(this.size * 2.5, 0, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // White belly
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                    ctx.beginPath();
+                    ctx.ellipse(0, this.size * 0.3, this.size * 1.5, this.size * 0.8, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                } else if (this.species === 'zebra') {
+                    // Zebra body
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, this.size * 2.2, this.size * 1.4, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Stripes on body
+                    ctx.fillStyle = '#000';
+                    for (let i = 0; i < 5; i++) {
+                        ctx.fillRect(-this.size * 2 + i * (this.size * 0.8), -this.size * 1.4, this.size * 0.4, this.size * 2.8);
+                    }
+                    
+                    // Head
+                    ctx.fillStyle = '#fff';
+                    ctx.beginPath();
+                    ctx.ellipse(this.size * 2.5, 0, this.size * 1.4, this.size, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Stripes on head
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(this.size * 2, -this.size * 0.8, this.size * 0.3, this.size * 1.6);
+                    ctx.fillRect(this.size * 2.6, -this.size * 0.8, this.size * 0.3, this.size * 1.6);
+                    
+                    // Neck
+                    ctx.fillStyle = '#fff';
+                    ctx.fillRect(this.size * 1, -this.size * 0.6, this.size * 1.5, this.size * 1.2);
+                    ctx.fillStyle = '#000';
+                    ctx.fillRect(this.size * 1.2, -this.size * 0.6, this.size * 0.3, this.size * 1.2);
+                    ctx.fillRect(this.size * 1.8, -this.size * 0.6, this.size * 0.3, this.size * 1.2);
+                    
+                    // Mane
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    for (let i = 0; i < 4; i++) {
+                        const x = this.size * 0.8 + i * (this.size * 0.5);
+                        ctx.moveTo(x, -this.size * 0.6);
+                        ctx.lineTo(x, -this.size * 1.3);
+                    }
+                    ctx.stroke();
+                    
+                    // Legs
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath();
+                    // Front legs
+                    ctx.moveTo(this.size * 1.4, this.size * 1);
+                    ctx.lineTo(this.size * 1.4, this.size * 2.5);
+                    ctx.moveTo(this.size * 0.9, this.size * 1);
+                    ctx.lineTo(this.size * 0.9, this.size * 2.5);
+                    // Back legs
+                    ctx.moveTo(-this.size * 0.9, this.size * 1);
+                    ctx.lineTo(-this.size * 0.9, this.size * 2.5);
+                    ctx.moveTo(-this.size * 1.4, this.size * 1);
+                    ctx.lineTo(-this.size * 1.4, this.size * 2.5);
+                    ctx.stroke();
+                    
+                    // Eye
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.arc(this.size * 2.8, 0, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Tail
+                    ctx.strokeStyle = '#000';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-this.size * 2.2, 0);
+                    ctx.lineTo(-this.size * 3, this.size * 0.5);
+                    ctx.stroke();
+                    ctx.fillStyle = '#000';
+                    ctx.beginPath();
+                    ctx.ellipse(-this.size * 3, this.size * 0.5, this.size * 0.5, this.size * 0.8, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Leader crown
+                if (this.isLeader) {
+                    ctx.fillStyle = '#ffd700';
+                    ctx.beginPath();
+                    ctx.arc(this.size * 2, -this.size * 1.8, this.size * 0.8, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#000';
+                    ctx.font = `${this.size * 2}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('⭐', this.size * 2, -this.size * 1.8);
+                }
+                
+                ctx.restore();
+            }
+        }
+        
+        // Predator class
+        class Predator {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 1.5;
+                this.vy = (Math.random() - 0.5) * 1.5;
+                this.size = 12;
+                this.maxSpeed = 2;
+                this.trail = [];
+                this.trailMaxLength = 40;
+            }
+            
+            update(boids, obstacles, params) {
+                // Hunt nearest prey
+                let nearestPrey = null;
+                let nearestDist = Infinity;
+                
+                for (let boid of boids) {
+                    const dx = boid.x - this.x;
+                    const dy = boid.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < 200 && dist < nearestDist) {
+                        nearestDist = dist;
+                        nearestPrey = boid;
+                    }
+                }
+                
+                if (nearestPrey) {
+                    const dx = nearestPrey.x - this.x;
+                    const dy = nearestPrey.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist > 0) {
+                        this.vx += (dx / dist) * 0.3;
+                        this.vy += (dy / dist) * 0.3;
+                    }
+                }
+                
+                // Avoid obstacles
+                for (let obstacle of obstacles) {
+                    const dx = this.x - obstacle.x;
+                    const dy = this.y - obstacle.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const avoidRadius = obstacle.radius + 40;
+                    
+                    if (dist < avoidRadius && dist > 0) {
+                        const avoidForce = (avoidRadius - dist) / avoidRadius * 6;
+                        this.vx += (dx / dist) * avoidForce;
+                        this.vy += (dy / dist) * avoidForce;
+                    }
+                }
+                
+                // Avoid watering hole
+                if (params.showWateringHole && wateringHole) {
+                    const dx = this.x - wateringHole.x;
+                    const dy = this.y - wateringHole.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const avoidRadius = wateringHole.radius + 20;
+                    
+                    if (dist < avoidRadius && dist > 0) {
+                        const avoidForce = (avoidRadius - dist) / avoidRadius * 4;
+                        this.vx += (dx / dist) * avoidForce;
+                        this.vy += (dy / dist) * avoidForce;
+                    }
+                }
+                
+                // Limit speed
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                if (speed > this.maxSpeed) {
+                    this.vx = (this.vx / speed) * this.maxSpeed;
+                    this.vy = (this.vy / speed) * this.maxSpeed;
+                }
+                
+                this.x += this.vx;
+                this.y += this.vy;
+                
+                // Boundary handling
+                if (params.wrapBoundary) {
+                    if (this.x < 0) this.x = canvas.width;
+                    if (this.x > canvas.width) this.x = 0;
+                    if (this.y < 0) this.y = canvas.height;
+                    if (this.y > canvas.height) this.y = 0;
+                } else {
+                    const margin = 50;
+                    if (this.x < margin) this.vx += 0.5;
+                    if (this.x > canvas.width - margin) this.vx -= 0.5;
+                    if (this.y < margin) this.vy += 0.5;
+                    if (this.y > canvas.height - margin) this.vy -= 0.5;
+                    
+                    this.x = Math.max(0, Math.min(canvas.width, this.x));
+                    this.y = Math.max(0, Math.min(canvas.height, this.y));
+                }
+                
+                // Update trail
+                if (params.showTrails) {
+                    this.trail.push({ x: this.x, y: this.y });
+                    if (this.trail.length > this.trailMaxLength) {
+                        this.trail.shift();
+                    }
+                }
+            }
+            
+            draw(ctx, params) {
+                // Draw trail
+                if (params.showTrails && this.trail.length > 1) {
+                    for (let i = 0; i < this.trail.length - 1; i++) {
+                        const alpha = (i / this.trail.length) * 0.7;  // Increased from 0.4 for more visible trails
+                        ctx.strokeStyle = `rgba(139, 69, 19, ${alpha})`;
+                        ctx.lineWidth = 4;  // Increased from 3
+                        ctx.beginPath();
+                        ctx.moveTo(this.trail[i].x, this.trail[i].y);
+                        ctx.lineTo(this.trail[i + 1].x, this.trail[i + 1].y);
+                        ctx.stroke();
+                    }
+                }
+                
+                // Draw predator (lion)
+                const angle = Math.atan2(this.vy, this.vx);
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(angle);
+                
+                // Body
+                ctx.fillStyle = '#cd853f';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, this.size * 2, this.size * 1.3, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Head
+                ctx.fillStyle = '#cd853f';
+                ctx.beginPath();
+                ctx.ellipse(this.size * 2.3, 0, this.size * 1.3, this.size * 1.1, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Mane
+                ctx.fillStyle = '#8b4513';
+                ctx.beginPath();
+                ctx.arc(this.size * 1.5, 0, this.size * 1.6, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Redraw head on top of mane
+                ctx.fillStyle = '#cd853f';
+                ctx.beginPath();
+                ctx.ellipse(this.size * 2.3, 0, this.size * 1.3, this.size * 1.1, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Ears
+                ctx.fillStyle = '#8b4513';
+                ctx.beginPath();
+                ctx.arc(this.size * 2.2, -this.size * 1, this.size * 0.5, 0, Math.PI * 2);
+                ctx.arc(this.size * 2.2, this.size * 1, this.size * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Snout
+                ctx.fillStyle = '#daa520';
+                ctx.beginPath();
+                ctx.ellipse(this.size * 3.2, 0, this.size * 0.7, this.size * 0.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Nose
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(this.size * 3.5, 0, this.size * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Eyes
+                ctx.fillStyle = '#ffd700';
+                ctx.beginPath();
+                ctx.arc(this.size * 2.7, -this.size * 0.4, this.size * 0.35, 0, Math.PI * 2);
+                ctx.arc(this.size * 2.7, this.size * 0.4, this.size * 0.35, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(this.size * 2.8, -this.size * 0.4, this.size * 0.2, 0, Math.PI * 2);
+                ctx.arc(this.size * 2.8, this.size * 0.4, this.size * 0.2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Legs
+                ctx.strokeStyle = '#cd853f';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                // Front legs
+                ctx.moveTo(this.size * 1.2, this.size * 0.9);
+                ctx.lineTo(this.size * 1.2, this.size * 2.2);
+                ctx.moveTo(this.size * 0.6, this.size * 0.9);
+                ctx.lineTo(this.size * 0.6, this.size * 2.2);
+                // Back legs
+                ctx.moveTo(-this.size * 0.8, this.size * 0.9);
+                ctx.lineTo(-this.size * 0.8, this.size * 2.2);
+                ctx.moveTo(-this.size * 1.4, this.size * 0.9);
+                ctx.lineTo(-this.size * 1.4, this.size * 2.2);
+                ctx.stroke();
+                
+                // Paws
+                ctx.fillStyle = '#cd853f';
+                ctx.beginPath();
+                ctx.arc(this.size * 1.2, this.size * 2.2, this.size * 0.4, 0, Math.PI * 2);
+                ctx.arc(this.size * 0.6, this.size * 2.2, this.size * 0.4, 0, Math.PI * 2);
+                ctx.arc(-this.size * 0.8, this.size * 2.2, this.size * 0.4, 0, Math.PI * 2);
+                ctx.arc(-this.size * 1.4, this.size * 2.2, this.size * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Tail
+                ctx.strokeStyle = '#cd853f';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.moveTo(-this.size * 2, 0);
+                ctx.quadraticCurveTo(-this.size * 3, this.size * 0.5, -this.size * 3.5, this.size * 1);
+                ctx.stroke();
+                
+                // Tail tuft
+                ctx.fillStyle = '#8b4513';
+                ctx.beginPath();
+                ctx.arc(-this.size * 3.5, this.size * 1, this.size * 0.5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+        }
+        
+        // Obstacle class
+        class Obstacle {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 25;
+            }
+            
+            draw(ctx) {
+                // Tree trunk
+                ctx.fillStyle = '#654321';
+                ctx.fillRect(this.x - 5, this.y - 10, 10, 20);
+                
+                // Tree foliage
+                ctx.fillStyle = '#228b22';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y - 15, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = '#006400';
+                ctx.beginPath();
+                ctx.arc(this.x - 8, this.y - 20, 15, 0, Math.PI * 2);
+                ctx.arc(this.x + 8, this.y - 20, 15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        
+        // Watering hole
+        const wateringHole = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            radius: 60,
+            draw: function(ctx) {
+                // Water
+                ctx.fillStyle = '#4682b4';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Reflection shimmer
+                ctx.fillStyle = 'rgba(135, 206, 250, 0.5)';
+                ctx.beginPath();
+                ctx.arc(this.x - 10, this.y - 10, this.radius * 0.4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Border
+                ctx.strokeStyle = '#8b7355';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+        };
+        
+        // Initialize simulation
+        let boids = [];
+        let predators = [];
+        let obstacles = [];
+        let isPaused = false;
+        let addingPredator = false;
+        let addingLeader = false;
+        let addingObstacle = false;
+        let removingObstacle = false;
+        
+        let mousePos = { x: 0, y: 0, active: false };
+        
+        let params = {
+            separation: 2.0,  // Good spacing to prevent clumping
+            alignment: 3.0,  // Maximum alignment for synchronized movement
+            cohesion: 2.5,  // Strong cohesion
+            neighborRadius: 120,  // Wide perception for wave propagation
+            maxSpeed: 2,
+            wrapBoundary: true,
+            showRadius: false,
+            showTrails: true,
+            showWateringHole: true,
+            followMouse: false
+        };
+        
+        // Initialize boids
+        function initBoids() {
+            boids = [];
+            predators = [];
+            obstacles = [];
+            
+            // Add gazelles (reduced from 30 to 15)
+            for (let i = 0; i < 15; i++) {
+                boids.push(new Boid(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height,
+                    'gazelle'
+                ));
+            }
+            
+            // Add zebras (reduced from 20 to 10)
+            for (let i = 0; i < 10; i++) {
+                boids.push(new Boid(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height,
+                    'zebra'
+                ));
+            }
+            
+            // Add some initial trees
+            for (let i = 0; i < 3; i++) {
+                obstacles.push(new Obstacle(
+                    Math.random() * (canvas.width - 100) + 50,
+                    Math.random() * (canvas.height - 100) + 50
+                ));
+            }
+        }
+        
+        initBoids();
+        
+        // Initialize toggle trails button text
+        const trailBtn = document.getElementById('toggle-trails-btn');
+        if (params.showTrails) {
+            trailBtn.textContent = '👣 Hide Trails';
+        } else {
+            trailBtn.textContent = '👣 Show Trails';
+        }
+        
+        // Animation loop
+        let lastTime = performance.now();
+        let fps = 60;
+        
+        function animate() {
+            if (!isPaused) {
+                // Calculate FPS
+                const currentTime = performance.now();
+                const delta = currentTime - lastTime;
+                fps = Math.round(1000 / delta);
+                lastTime = currentTime;
+                
+                // Clear canvas with gradient
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#e8d4a0');
+                gradient.addColorStop(0.5, '#c9a66b');
+                gradient.addColorStop(1, '#8b7355');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw grass texture
+                ctx.fillStyle = 'rgba(34, 139, 34, 0.1)';
+                for (let i = 0; i < 100; i++) {
+                    const x = (i * 137.5) % canvas.width;
+                    const y = (i * 73.2) % canvas.height;
+                    ctx.fillRect(x, y, 2, 8);
+                }
+                
+                // Draw watering hole
+                if (params.showWateringHole) {
+                    wateringHole.draw(ctx);
+                }
+                
+                // Draw obstacles
+                for (let obstacle of obstacles) {
+                    obstacle.draw(ctx);
+                }
+                
+                // Update and draw boids
+                for (let boid of boids) {
+                    boid.update(boids, predators, obstacles, params, mousePos);
+                }
+                
+                for (let boid of boids) {
+                    boid.draw(ctx, params);
+                }
+                
+                // Update and draw predators
+                for (let predator of predators) {
+                    predator.update(boids, obstacles, params);
+                    predator.draw(ctx, params);
+                }
+                
+                // Draw mouse cursor indicator if following
+                if (params.followMouse && mousePos.active) {
+                    ctx.strokeStyle = '#ffd700';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(mousePos.x, mousePos.y, 20, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.arc(mousePos.x, mousePos.y, 25, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    // Draw crosshair
+                    ctx.beginPath();
+                    ctx.moveTo(mousePos.x - 15, mousePos.y);
+                    ctx.lineTo(mousePos.x - 5, mousePos.y);
+                    ctx.moveTo(mousePos.x + 5, mousePos.y);
+                    ctx.lineTo(mousePos.x + 15, mousePos.y);
+                    ctx.moveTo(mousePos.x, mousePos.y - 15);
+                    ctx.lineTo(mousePos.x, mousePos.y - 5);
+                    ctx.moveTo(mousePos.x, mousePos.y + 5);
+                    ctx.lineTo(mousePos.x, mousePos.y + 15);
+                    ctx.stroke();
+                }
+                
+                // Update stats
+                updateStats();
+            }
+            
+            requestAnimationFrame(animate);
+        }
+        
+        animate();
+        
+        // Update stats
+        function updateStats() {
+            document.getElementById('fps').textContent = fps;
+            
+            const gazelleCount = boids.filter(b => b.species === 'gazelle').length;
+            const zebraCount = boids.filter(b => b.species === 'zebra').length;
+            document.getElementById('gazelle-count').textContent = gazelleCount;
+            document.getElementById('zebra-count').textContent = zebraCount;
+            document.getElementById('predator-count').textContent = predators.length;
+            
+            const totalNeighbors = boids.reduce((sum, b) => sum + (b.neighborCount || 0), 0);
+            const avgNeighbors = boids.length > 0 ? totalNeighbors / boids.length : 0;
+            document.getElementById('avg-neighbors').textContent = avgNeighbors.toFixed(1);
+        }
+        
+        // Control event listeners
+        document.getElementById('separation').addEventListener('input', (e) => {
+            params.separation = parseFloat(e.target.value);
+            document.getElementById('sep-val').textContent = params.separation.toFixed(1);
+        });
+        
+        document.getElementById('alignment').addEventListener('input', (e) => {
+            params.alignment = parseFloat(e.target.value);
+            document.getElementById('align-val').textContent = params.alignment.toFixed(1);
+        });
+        
+        document.getElementById('cohesion').addEventListener('input', (e) => {
+            params.cohesion = parseFloat(e.target.value);
+            document.getElementById('coh-val').textContent = params.cohesion.toFixed(1);
+        });
+        
+        document.getElementById('neighbor-radius').addEventListener('input', (e) => {
+            params.neighborRadius = parseFloat(e.target.value);
+            document.getElementById('radius-val').textContent = params.neighborRadius.toFixed(0);
+        });
+        
+        document.getElementById('max-speed').addEventListener('input', (e) => {
+            params.maxSpeed = parseFloat(e.target.value);
+            document.getElementById('speed-val').textContent = params.maxSpeed.toFixed(1);
+        });
+        
+        document.getElementById('pause-btn').addEventListener('click', () => {
+            isPaused = !isPaused;
+            document.getElementById('pause-btn').textContent = isPaused ? '▶️ Resume' : '⏸️ Pause';
+        });
+        
+        document.getElementById('reset-btn').addEventListener('click', () => {
+            initBoids();
+        });
+        
+        document.getElementById('toggle-trails-btn').addEventListener('click', () => {
+            params.showTrails = !params.showTrails;
+            document.getElementById('show-trails').checked = params.showTrails;
+            
+            const btn = document.getElementById('toggle-trails-btn');
+            if (params.showTrails) {
+                btn.textContent = '👣 Hide Trails';
+            } else {
+                btn.textContent = '👣 Show Trails';
+                // Clear existing trails when hiding
+                for (let boid of boids) {
+                    boid.trail = [];
+                }
+                for (let predator of predators) {
+                    predator.trail = [];
+                }
+            }
+        });
+        
+        document.getElementById('show-radius').addEventListener('change', (e) => {
+            params.showRadius = e.target.checked;
+        });
+        
+        document.getElementById('show-trails').addEventListener('change', (e) => {
+            params.showTrails = e.target.checked;
+            
+            // Update button text to match
+            const btn = document.getElementById('toggle-trails-btn');
+            if (params.showTrails) {
+                btn.textContent = '👣 Hide Trails';
+            } else {
+                btn.textContent = '👣 Show Trails';
+                // Clear existing trails when hiding
+                for (let boid of boids) {
+                    boid.trail = [];
+                }
+                for (let predator of predators) {
+                    predator.trail = [];
+                }
+            }
+        });
+        
+        document.getElementById('wrap-boundary').addEventListener('change', (e) => {
+            params.wrapBoundary = e.target.checked;
+        });
+        
+        document.getElementById('watering-hole-toggle').addEventListener('change', (e) => {
+            params.showWateringHole = e.target.checked;
+        });
+        
+        // Follow mouse button
+        document.getElementById('follow-mouse-btn').addEventListener('click', () => {
+            params.followMouse = !params.followMouse;
+            const btn = document.getElementById('follow-mouse-btn');
+            if (params.followMouse) {
+                btn.textContent = '🖱️ Stop Following';
+                btn.style.background = 'linear-gradient(135deg, #dc143c 0%, #ff6347 100%)';
+                mousePos.active = true;
+            } else {
+                btn.textContent = '🖱️ Follow Mouse';
+                btn.style.background = 'linear-gradient(135deg, #ff8c00 0%, #ffa500 100%)';
+                mousePos.active = false;
+            }
+        });
+        
+        // Track mouse position on canvas
+        canvas.addEventListener('mousemove', (e) => {
+            if (params.followMouse) {
+                const rect = canvas.getBoundingClientRect();
+                mousePos.x = e.clientX - rect.left;
+                mousePos.y = e.clientY - rect.top;
+            }
+        });
+        
+        canvas.addEventListener('mouseenter', () => {
+            if (params.followMouse) {
+                mousePos.active = true;
+            }
+        });
+        
+        canvas.addEventListener('mouseleave', () => {
+            mousePos.active = false;
+        });
+        
+        // Preset behaviors
+        document.getElementById('peaceful-btn').addEventListener('click', () => {
+            params.separation = 1.8;
+            params.alignment = 2.5;
+            params.cohesion = 2.5;
+            params.maxSpeed = 1.8;
+            updateSliders();
+        });
+        
+        document.getElementById('migration-btn').addEventListener('click', () => {
+            params.separation = 2.0;
+            params.alignment = 4.0;  // Extreme alignment for synchronized migration
+            params.cohesion = 3.0;
+            params.maxSpeed = 3.5;
+            updateSliders();
+        });
+        
+        document.getElementById('alert-btn').addEventListener('click', () => {
+            params.separation = 2.5;
+            params.alignment = 3.5;  // High alignment even when alert
+            params.cohesion = 2.0;
+            params.maxSpeed = 4.5;
+            updateSliders();
+        });
+        
+        function updateSliders() {
+            document.getElementById('separation').value = params.separation;
+            document.getElementById('sep-val').textContent = params.separation.toFixed(1);
+            document.getElementById('alignment').value = params.alignment;
+            document.getElementById('align-val').textContent = params.alignment.toFixed(1);
+            document.getElementById('cohesion').value = params.cohesion;
+            document.getElementById('coh-val').textContent = params.cohesion.toFixed(1);
+            document.getElementById('max-speed').value = params.maxSpeed;
+            document.getElementById('speed-val').textContent = params.maxSpeed.toFixed(1);
+            document.getElementById('drought').value = params.drought;
+            document.getElementById('drought-val').textContent = params.drought.toFixed(0);
+            document.getElementById('food').value = params.food;
+            document.getElementById('food-val').textContent = params.food.toFixed(0);
+        }
+        
+        // Interactive features
+        document.getElementById('add-predator-btn').addEventListener('click', () => {
+            addingPredator = true;
+            addingLeader = false;
+            addingObstacle = false;
+            removingObstacle = false;
+            canvas.style.cursor = 'crosshair';
+        });
+        
+        document.getElementById('remove-predator-btn').addEventListener('click', () => {
+            if (predators.length > 0) {
+                predators.pop();
+            }
+        });
+        
+        document.getElementById('add-leader-btn').addEventListener('click', () => {
+            addingLeader = true;
+            addingPredator = false;
+            addingObstacle = false;
+            removingObstacle = false;
+            canvas.style.cursor = 'pointer';
+        });
+        
+        document.getElementById('add-obstacle-btn').addEventListener('click', () => {
+            addingObstacle = true;
+            addingPredator = false;
+            addingLeader = false;
+            removingObstacle = false;
+            canvas.style.cursor = 'crosshair';
+        });
+        
+        document.getElementById('remove-obstacle-btn').addEventListener('click', () => {
+            removingObstacle = true;
+            addingObstacle = false;
+            addingPredator = false;
+            addingLeader = false;
+            canvas.style.cursor = 'pointer';
+        });
+        
+        // Canvas click handler
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            if (addingPredator) {
+                predators.push(new Predator(x, y));
+                addingPredator = false;
+                canvas.style.cursor = 'default';
+            } else if (addingLeader) {
+                // Find nearest gazelle
+                let nearestBoid = null;
+                let nearestDist = Infinity;
+                
+                for (let boid of boids) {
+                    if (boid.species !== 'gazelle') continue;
+                    const dx = boid.x - x;
+                    const dy = boid.y - y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < nearestDist && dist < 50) {
+                        nearestDist = dist;
+                        nearestBoid = boid;
+                    }
+                }
+                
+                if (nearestBoid) {
+                    // Remove leader status from all
+                    for (let boid of boids) {
+                        boid.isLeader = false;
+                    }
+                    nearestBoid.isLeader = true;
+                }
+                
+                addingLeader = false;
+                canvas.style.cursor = 'default';
+            } else if (addingObstacle) {
+                obstacles.push(new Obstacle(x, y));
+                addingObstacle = false;
+                canvas.style.cursor = 'default';
+            } else if (removingObstacle) {
+                // Remove nearest obstacle
+                let nearestObstacle = null;
+                let nearestDist = Infinity;
+                
+                for (let i = 0; i < obstacles.length; i++) {
+                    const dx = obstacles[i].x - x;
+                    const dy = obstacles[i].y - y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < nearestDist && dist < obstacles[i].radius) {
+                        nearestDist = dist;
+                        nearestObstacle = i;
+                    }
+                }
+                
+                if (nearestObstacle !== null) {
+                    obstacles.splice(nearestObstacle, 1);
+                }
+                
+                removingObstacle = false;
+                canvas.style.cursor = 'default';
+            }
+        });
+    </script>
+</body>
+</html>
