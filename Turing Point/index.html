@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Turing Pattern Explorer</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #canvas-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        canvas {
+            border-radius: 8px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            cursor: crosshair;
+        }
+        #controls {
+            width: 320px;
+            background: rgba(255, 255, 255, 0.98);
+            padding: 24px;
+            overflow-y: auto;
+        }
+        h1 { font-size: 24px; margin-bottom: 8px; color: #667eea; }
+        .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+        .section { margin-bottom: 28px; }
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #555;
+            text-transform: uppercase;
+        }
+        .control-group { margin-bottom: 16px; }
+        label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 6px;
+            color: #666;
+            font-weight: 500;
+        }
+        .value-display { float: right; color: #667eea; font-weight: 600; }
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+        }
+        .preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .preset-btn {
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        .preset-btn:hover {
+            border-color: #667eea;
+            color: #667eea;
+            transform: translateY(-2px);
+        }
+        .color-scheme-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+        .color-btn {
+            height: 40px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .color-btn.active { border-color: #667eea; border-width: 3px; }
+        .brush-tools { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        .tool-btn {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.2s;
+        }
+        .tool-btn.active { background: #667eea; color: white; border-color: #667eea; }
+        .action-btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .action-btn.primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .action-btn.secondary { background: white; border: 2px solid #e0e0e0; color: #666; }
+        .toggle-container { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; }
+        .toggle {
+            position: relative;
+            width: 48px;
+            height: 24px;
+            background: #e0e0e0;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .toggle.active { background: #667eea; }
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        .toggle.active .toggle-slider { transform: translateX(24px); }
+        .hint {
+            background: #fffbea;
+            border-left: 4px solid #f59e0b;
+            padding: 12px;
+            margin-top: 16px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+        .info-text { font-size: 12px; color: #888; margin-top: 8px; }
+        .status-bar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: 12px;
+            z-index: 1000;
+            display: none;
+        }
+        .status-bar.show { display: block; }
+    </style>
+</head>
+<body>
+    <div id="status-bar" class="status-bar"></div>
+    
+    <div id="canvas-container">
+        <canvas id="glCanvas" width="512" height="512"></canvas>
+    </div>
+
+    <div id="controls">
+        <h1>Turing Patterns</h1>
+        <p class="subtitle">Safari-optimized reaction-diffusion explorer</p>
+
+        <div class="section">
+            <div class="section-title">Presets</div>
+            <div class="preset-grid">
+                <button class="preset-btn" onclick="loadPreset('spots')">Spots</button>
+                <button class="preset-btn" onclick="loadPreset('stripes')">Stripes</button>
+                <button class="preset-btn" onclick="loadPreset('waves')">Waves</button>
+                <button class="preset-btn" onclick="loadPreset('coral')">Coral</button>
+                <button class="preset-btn" onclick="loadPreset('maze')">Maze</button>
+                <button class="preset-btn" onclick="loadPreset('fingerprint')">Fingerprint</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Simulation</div>
+            
+            <div class="control-group">
+                <label>
+                    Feed Rate (f)
+                    <span class="value-display" id="feed-value">0.055</span>
+                </label>
+                <input type="range" id="feed" min="0.01" max="0.1" step="0.001" value="0.055" 
+                       oninput="updateParam('feed', this.value)">
+            </div>
+
+            <div class="control-group">
+                <label>
+                    Kill Rate (k)
+                    <span class="value-display" id="kill-value">0.062</span>
+                </label>
+                <input type="range" id="kill" min="0.045" max="0.07" step="0.001" value="0.062"
+                       oninput="updateParam('kill', this.value)">
+            </div>
+
+            <div class="control-group">
+                <label>
+                    Diffusion A
+                    <span class="value-display" id="diffA-value">1.0</span>
+                </label>
+                <input type="range" id="diffA" min="0.5" max="1.5" step="0.05" value="1.0"
+                       oninput="updateParam('diffA', this.value)">
+            </div>
+
+            <div class="control-group">
+                <label>
+                    Diffusion B
+                    <span class="value-display" id="diffB-value">0.5</span>
+                </label>
+                <input type="range" id="diffB" min="0.1" max="0.8" step="0.05" value="0.5"
+                       oninput="updateParam('diffB', this.value)">
+            </div>
+
+            <div class="control-group">
+                <label>
+                    Timestep
+                    <span class="value-display" id="timestep-value">1.0</span>
+                </label>
+                <input type="range" id="timestep" min="0.5" max="2.0" step="0.1" value="1.0"
+                       oninput="updateParam('timestep', this.value)">
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Color Schemes</div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
+                <div class="color-btn active" onclick="setColorScheme('ocean')" 
+                     style="background: linear-gradient(135deg, #05142a, #1a4d7a, #3280cc, #80b3ff);"></div>
+                <div class="color-btn" onclick="setColorScheme('fire')" 
+                     style="background: linear-gradient(135deg, #000000, #ff0000, #ff7f00, #ffff00);"></div>
+                <div class="color-btn" onclick="setColorScheme('purple')" 
+                     style="background: linear-gradient(135deg, #2d1b3d, #5a2d6f, #a855f7, #e9d5ff);"></div>
+                <div class="color-btn" onclick="setColorScheme('mint')" 
+                     style="background: linear-gradient(135deg, #1a1a1a, #064e3b, #10b981, #d1fae5);"></div>
+                <div class="color-btn" onclick="setColorScheme('sunset')" 
+                     style="background: linear-gradient(135deg, #1e1b4b, #7c2d12, #ea580c, #fbbf24);"></div>
+                <div class="color-btn" onclick="setColorScheme('grayscale')" 
+                     style="background: linear-gradient(135deg, #000000, #404040, #a0a0a0, #ffffff);"></div>
+                <div class="color-btn" onclick="setColorScheme('rainbow')" 
+                     style="background: linear-gradient(90deg, #ff0000, #ffff00, #00ff00, #0000ff, #ff00ff);"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Brush Tools</div>
+            <div class="brush-tools">
+                <button class="tool-btn active" onclick="setBrushMode('add')">➕ Add</button>
+                <button class="tool-btn" onclick="setBrushMode('remove')">➖ Remove</button>
+            </div>
+            <div class="control-group" style="margin-top: 12px;">
+                <label>
+                    Brush Size
+                    <span class="value-display" id="brush-value">30</span>
+                </label>
+                <input type="range" id="brushSize" min="10" max="100" step="5" value="30"
+                       oninput="updateParam('brushSize', this.value)">
+            </div>
+            
+            <div style="margin-top: 16px;">
+                <div class="section-title">Stamp Shapes</div>
+                <div class="brush-tools" style="grid-template-columns: repeat(4, 1fr);">
+                    <button class="tool-btn active" onclick="setStamp('none')">✏️</button>
+                    <button class="tool-btn" onclick="setStamp('star')">⭐</button>
+                    <button class="tool-btn" onclick="setStamp('heart')">❤️</button>
+                    <button class="tool-btn" onclick="setStamp('smiley')">😊</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Actions</div>
+            <button class="action-btn primary" onclick="randomizeState()">🎲 Randomize</button>
+            <button class="action-btn secondary" onclick="clearCanvas()">🗑️ Clear Canvas</button>
+            
+            <div class="toggle-container">
+                <span style="font-size: 13px; font-weight: 500; color: #666;">Animate</span>
+                <div class="toggle active" id="pauseToggle" onclick="togglePause()">
+                    <div class="toggle-slider"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="hint">
+            💡 <strong>Tip:</strong> Click "Clear Canvas", then paint a shape. Watch it evolve into patterns!
+        </div>
+    </div>
+
+    <script>
+        let canvas, gl;
+        let simulationProgram, renderProgram, brushProgram;
+        let fbo1, fbo2, currentFBO = 0;
+        let positionBuffer;
+        
+        const params = {
+            feed: 0.055,
+            kill: 0.062,
+            diffA: 1.0,
+            diffB: 0.5,
+            timestep: 1.0,
+            brushSize: 30,
+            brushMode: 'add',
+            stampShape: 'none',
+            rainbowMode: false,
+            paused: false,
+            colorScheme: 'ocean'
+        };
+
+        const colorSchemes = {
+            ocean: [[0.05, 0.10, 0.20], [0.10, 0.30, 0.50], [0.20, 0.50, 0.80], [0.50, 0.70, 1.0]],
+            fire: [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 0.5, 0.0], [1.0, 1.0, 0.0]],
+            purple: [[0.18, 0.11, 0.24], [0.35, 0.18, 0.44], [0.66, 0.33, 0.97], [0.91, 0.84, 1.0]],
+            mint: [[0.10, 0.10, 0.10], [0.02, 0.31, 0.23], [0.06, 0.73, 0.51], [0.82, 0.98, 0.90]],
+            sunset: [[0.12, 0.11, 0.29], [0.49, 0.18, 0.07], [0.92, 0.35, 0.05], [0.98, 0.75, 0.14]],
+            grayscale: [[0.0, 0.0, 0.0], [0.25, 0.25, 0.25], [0.63, 0.63, 0.63], [1.0, 1.0, 1.0]],
+            rainbow: [[1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+        };
+
+        const presets = {
+            spots: { feed: 0.055, kill: 0.062, diffA: 1.0, diffB: 0.5 },
+            stripes: { feed: 0.037, kill: 0.060, diffA: 1.0, diffB: 0.5 },
+            waves: { feed: 0.022, kill: 0.051, diffA: 1.0, diffB: 0.5 },
+            coral: { feed: 0.062, kill: 0.061, diffA: 1.0, diffB: 0.5 },
+            maze: { feed: 0.029, kill: 0.057, diffA: 1.0, diffB: 0.5 },
+            fingerprint: { feed: 0.055, kill: 0.062, diffA: 0.8, diffB: 0.4 }
+        };
+
+        let isDrawing = false;
+        let lastX, lastY;
+        let rainbowHue = 0; // For rainbow animation
+        let animationTime = 0;
+
+        function showStatus(msg, duration = 2000) {
+            const bar = document.getElementById('status-bar');
+            bar.textContent = msg;
+            bar.classList.add('show');
+            setTimeout(() => bar.classList.remove('show'), duration);
+        }
+
+        function init() {
+            canvas = document.getElementById('glCanvas');
+            gl = canvas.getContext('webgl', { preserveDrawingBuffer: true, antialias: false });
+            
+            if (!gl) {
+                alert('WebGL not supported');
+                return;
+            }
+            
+            const floatExt = gl.getExtension('OES_texture_float');
+            if (!floatExt) {
+                alert('Float textures not supported');
+                return;
+            }
+            
+            const vs = `
+                attribute vec2 a_position;
+                varying vec2 v_texCoord;
+                void main() {
+                    v_texCoord = a_position * 0.5 + 0.5;
+                    gl_Position = vec4(a_position, 0.0, 1.0);
+                }
+            `;
+            
+            const simFS = `
+                precision highp float;
+                uniform sampler2D u_state;
+                uniform vec2 u_resolution;
+                uniform float u_feed, u_kill, u_diffA, u_diffB, u_timestep;
+                varying vec2 v_texCoord;
+                
+                void main() {
+                    vec2 p = 1.0 / u_resolution;
+                    vec2 s = texture2D(u_state, v_texCoord).rg;
+                    float a = s.r, b = s.g;
+                    
+                    vec2 lap = texture2D(u_state, v_texCoord).rg * -1.0;
+                    lap += texture2D(u_state, v_texCoord + vec2(-p.x, 0.0)).rg * 0.2;
+                    lap += texture2D(u_state, v_texCoord + vec2(p.x, 0.0)).rg * 0.2;
+                    lap += texture2D(u_state, v_texCoord + vec2(0.0, -p.y)).rg * 0.2;
+                    lap += texture2D(u_state, v_texCoord + vec2(0.0, p.y)).rg * 0.2;
+                    lap += texture2D(u_state, v_texCoord + vec2(-p.x, -p.y)).rg * 0.05;
+                    lap += texture2D(u_state, v_texCoord + vec2(p.x, -p.y)).rg * 0.05;
+                    lap += texture2D(u_state, v_texCoord + vec2(-p.x, p.y)).rg * 0.05;
+                    lap += texture2D(u_state, v_texCoord + vec2(p.x, p.y)).rg * 0.05;
+                    
+                    float rxn = a * b * b;
+                    float da = u_diffA * lap.r - rxn + u_feed * (1.0 - a);
+                    float db = u_diffB * lap.g + rxn - (u_kill + u_feed) * b;
+                    
+                    gl_FragColor = vec4(clamp(a + da * u_timestep, 0.0, 1.0), 
+                                       clamp(b + db * u_timestep, 0.0, 1.0), 0.0, 1.0);
+                }
+            `;
+            
+            const renderFS = `
+                precision highp float;
+                uniform sampler2D u_state;
+                uniform vec3 u_c1, u_c2, u_c3, u_c4;
+                varying vec2 v_texCoord;
+                
+                void main() {
+                    float v = texture2D(u_state, v_texCoord).g;
+                    vec3 color;
+                    if (v < 0.33) color = mix(u_c1, u_c2, v / 0.33);
+                    else if (v < 0.66) color = mix(u_c2, u_c3, (v - 0.33) / 0.33);
+                    else color = mix(u_c3, u_c4, (v - 0.66) / 0.34);
+                    gl_FragColor = vec4(color, 1.0);
+                }
+            `;
+            
+            const brushFS = `
+                precision highp float;
+                uniform sampler2D u_state;
+                uniform vec2 u_brushPos;
+                uniform float u_brushSize;
+                uniform float u_brushStrength;
+                varying vec2 v_texCoord;
+                
+                void main() {
+                    vec2 state = texture2D(u_state, v_texCoord).rg;
+                    vec2 pixelCoord = v_texCoord * 512.0;
+                    float dist = distance(pixelCoord, u_brushPos);
+                    
+                    if (dist < u_brushSize) {
+                        float influence = (1.0 - dist / u_brushSize) * u_brushStrength;
+                        state.g = clamp(state.g + influence, 0.0, 1.0);
+                    }
+                    
+                    gl_FragColor = vec4(state.r, state.g, 0.0, 1.0);
+                }
+            `;
+            
+            simulationProgram = createProgram(vs, simFS);
+            renderProgram = createProgram(vs, renderFS);
+            brushProgram = createProgram(vs, brushFS);
+            
+            positionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+            
+            fbo1 = createFBO();
+            fbo2 = createFBO();
+            
+            randomizeState();
+            
+            canvas.addEventListener('mousedown', onMouseDown);
+            canvas.addEventListener('mousemove', onMouseMove);
+            canvas.addEventListener('mouseup', onMouseUp);
+            canvas.addEventListener('mouseleave', onMouseUp);
+            
+            showStatus('✓ Ready! Paint on canvas', 3000);
+            animate();
+        }
+
+        function createProgram(vs, fs) {
+            const vertShader = gl.createShader(gl.VERTEX_SHADER);
+            gl.shaderSource(vertShader, vs);
+            gl.compileShader(vertShader);
+            
+            const fragShader = gl.createShader(gl.FRAGMENT_SHADER);
+            gl.shaderSource(fragShader, fs);
+            gl.compileShader(fragShader);
+            
+            const prog = gl.createProgram();
+            gl.attachShader(prog, vertShader);
+            gl.attachShader(prog, fragShader);
+            gl.linkProgram(prog);
+            
+            return prog;
+        }
+
+        function createFBO() {
+            const tex = gl.createTexture();
+            gl.bindTexture(gl.TEXTURE_2D, tex);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 512, 512, 0, gl.RGBA, gl.FLOAT, null);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+            
+            const fbo = gl.createFramebuffer();
+            gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+            
+            return { texture: tex, framebuffer: fbo };
+        }
+
+        function randomizeState() {
+            const colorNames = Object.keys(colorSchemes);
+            const randomColor = colorNames[Math.floor(Math.random() * colorNames.length)];
+            params.colorScheme = randomColor;
+            
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            const colorIndex = colorNames.indexOf(randomColor);
+            document.querySelectorAll('.color-btn')[colorIndex].classList.add('active');
+            
+            const presetNames = Object.keys(presets);
+            const randomPreset = presetNames[Math.floor(Math.random() * presetNames.length)];
+            const p = presets[randomPreset];
+            
+            params.feed = p.feed + (Math.random() - 0.5) * 0.01;
+            params.kill = p.kill + (Math.random() - 0.5) * 0.005;
+            params.diffA = p.diffA;
+            params.diffB = p.diffB;
+            
+            document.getElementById('feed').value = params.feed;
+            document.getElementById('feed-value').textContent = params.feed.toFixed(3);
+            document.getElementById('kill').value = params.kill;
+            document.getElementById('kill-value').textContent = params.kill.toFixed(3);
+            
+            const data = new Float32Array(512 * 512 * 4);
+            for (let i = 0; i < 512 * 512; i++) {
+                data[i*4] = 1.0;
+                data[i*4+1] = 0.0;
+            }
+            
+            for (let i = 0; i < 150; i++) {
+                const x = Math.floor(Math.random() * 512);
+                const y = Math.floor(Math.random() * 512);
+                const r = 10 + Math.random() * 30;
+                const intensity = 0.6 + Math.random() * 0.4;
+                
+                for (let dy = -r; dy <= r; dy++) {
+                    for (let dx = -r; dx <= r; dx++) {
+                        const dist = Math.sqrt(dx*dx + dy*dy);
+                        if (dist <= r) {
+                            const px = (x + dx + 512) % 512;
+                            const py = (y + dy + 512) % 512;
+                            data[(py * 512 + px) * 4 + 1] = intensity;
+                        }
+                    }
+                }
+            }
+            
+            gl.bindTexture(gl.TEXTURE_2D, fbo1.texture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 512, 512, 0, gl.RGBA, gl.FLOAT, data);
+            gl.bindTexture(gl.TEXTURE_2D, fbo2.texture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 512, 512, 0, gl.RGBA, gl.FLOAT, data);
+            
+            showStatus('🎲 ' + randomPreset.toUpperCase() + ' + ' + randomColor.toUpperCase());
+        }
+
+        function clearCanvas() {
+            const data = new Float32Array(512 * 512 * 4);
+            for (let i = 0; i < 512 * 512; i++) {
+                data[i*4] = 1.0;
+                data[i*4+1] = 0.0;
+            }
+            gl.bindTexture(gl.TEXTURE_2D, fbo1.texture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 512, 512, 0, gl.RGBA, gl.FLOAT, data);
+            gl.bindTexture(gl.TEXTURE_2D, fbo2.texture);
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 512, 512, 0, gl.RGBA, gl.FLOAT, data);
+            
+            showStatus('🗑️ Cleared');
+        }
+
+        function simulate() {
+            const readFBO = currentFBO === 0 ? fbo1 : fbo2;
+            const writeFBO = currentFBO === 0 ? fbo2 : fbo1;
+            
+            gl.useProgram(simulationProgram);
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            const pos = gl.getAttribLocation(simulationProgram, 'a_position');
+            gl.enableVertexAttribArray(pos);
+            gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+            
+            gl.uniform1i(gl.getUniformLocation(simulationProgram, 'u_state'), 0);
+            gl.uniform2f(gl.getUniformLocation(simulationProgram, 'u_resolution'), 512, 512);
+            gl.uniform1f(gl.getUniformLocation(simulationProgram, 'u_feed'), params.feed);
+            gl.uniform1f(gl.getUniformLocation(simulationProgram, 'u_kill'), params.kill);
+            gl.uniform1f(gl.getUniformLocation(simulationProgram, 'u_diffA'), params.diffA);
+            gl.uniform1f(gl.getUniformLocation(simulationProgram, 'u_diffB'), params.diffB);
+            gl.uniform1f(gl.getUniformLocation(simulationProgram, 'u_timestep'), params.timestep);
+            
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, readFBO.texture);
+            
+            gl.bindFramebuffer(gl.FRAMEBUFFER, writeFBO.framebuffer);
+            gl.viewport(0, 0, 512, 512);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            
+            currentFBO = 1 - currentFBO;
+        }
+
+        function applyBrush(x, y) {
+            if (params.stampShape !== 'none') {
+                applyStamp(x, y);
+                return;
+            }
+            
+            const readFBO = currentFBO === 0 ? fbo1 : fbo2;
+            const writeFBO = currentFBO === 0 ? fbo2 : fbo1;
+            
+            gl.useProgram(brushProgram);
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            const pos = gl.getAttribLocation(brushProgram, 'a_position');
+            gl.enableVertexAttribArray(pos);
+            gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+            
+            gl.uniform1i(gl.getUniformLocation(brushProgram, 'u_state'), 0);
+            gl.uniform2f(gl.getUniformLocation(brushProgram, 'u_brushPos'), x, y);
+            gl.uniform1f(gl.getUniformLocation(brushProgram, 'u_brushSize'), params.brushSize / 2);
+            
+            // If rainbow mode, vary strength to create color variation
+            let strength = params.brushMode === 'add' ? 1.0 : -1.0;
+            if (params.colorScheme === 'rainbow') {
+                // Vary the intensity based on hue to create rainbow effect
+                strength = params.brushMode === 'add' ? (0.5 + Math.sin(rainbowHue) * 0.5) : -1.0;
+                rainbowHue += 0.1; // Increment for next brush stroke
+            }
+            
+            gl.uniform1f(gl.getUniformLocation(brushProgram, 'u_brushStrength'), strength);
+            
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, readFBO.texture);
+            
+            gl.bindFramebuffer(gl.FRAMEBUFFER, writeFBO.framebuffer);
+            gl.viewport(0, 0, 512, 512);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            
+            currentFBO = 1 - currentFBO;
+        }
+        
+        function applyStamp(centerX, centerY) {
+            const size = params.brushSize * 3; // MUCH BIGGER
+            const points = [];
+            
+            // Generate DENSE filled shape points (every 2 pixels)
+            if (params.stampShape === 'star') {
+                for (let y = -size; y <= size; y += 2) {
+                    for (let x = -size; x <= size; x += 2) {
+                        if (isInsideStar(x / size, y / size)) {
+                            points.push({ x: centerX + x, y: centerY + y });
+                        }
+                    }
+                }
+            } else if (params.stampShape === 'heart') {
+                for (let y = -size; y <= size; y += 2) {
+                    for (let x = -size; x <= size; x += 2) {
+                        if (isInsideHeart(x / size, y / size)) {
+                            points.push({ x: centerX + x, y: centerY + y });
+                        }
+                    }
+                }
+            } else if (params.stampShape === 'smiley') {
+                for (let y = -size; y <= size; y += 2) {
+                    for (let x = -size; x <= size; x += 2) {
+                        if (isInsideSmiley(x / size, y / size)) {
+                            points.push({ x: centerX + x, y: centerY + y });
+                        }
+                    }
+                }
+            }
+            
+            console.log('Stamping', params.stampShape, 'with', points.length, 'points at', centerX, centerY);
+            
+            // Paint all points with LARGER brush
+            for (let point of points) {
+                const readFBO = currentFBO === 0 ? fbo1 : fbo2;
+                const writeFBO = currentFBO === 0 ? fbo2 : fbo1;
+                
+                gl.useProgram(brushProgram);
+                gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+                const pos = gl.getAttribLocation(brushProgram, 'a_position');
+                gl.enableVertexAttribArray(pos);
+                gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+                
+                gl.uniform1i(gl.getUniformLocation(brushProgram, 'u_state'), 0);
+                gl.uniform2f(gl.getUniformLocation(brushProgram, 'u_brushPos'), point.x, point.y);
+                gl.uniform1f(gl.getUniformLocation(brushProgram, 'u_brushSize'), 8); // BIGGER dots
+                gl.uniform1f(gl.getUniformLocation(brushProgram, 'u_brushStrength'), 1.0);
+                
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, readFBO.texture);
+                
+                gl.bindFramebuffer(gl.FRAMEBUFFER, writeFBO.framebuffer);
+                gl.viewport(0, 0, 512, 512);
+                gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+                
+                currentFBO = 1 - currentFBO;
+            }
+        }
+        
+        function isInsideStar(x, y) {
+            const dist = Math.sqrt(x * x + y * y);
+            if (dist > 1.0) return false;
+            
+            // 5-pointed star - better algorithm
+            const angle = Math.atan2(y, x) + Math.PI / 2;
+            const section = Math.floor((angle + Math.PI * 2) / (Math.PI * 2 / 5)) % 5;
+            const sectionAngle = (angle + Math.PI * 2) % (Math.PI * 2 / 5);
+            
+            // Distance from center of spike
+            const t = sectionAngle / (Math.PI * 2 / 5);
+            const maxRadius = 1.0 - Math.abs(t - 0.5) * 1.2;
+            
+            return dist < maxRadius;
+        }
+        
+        function isInsideHeart(x, y) {
+            // Simple geometric heart: two circles on top + triangle on bottom
+            
+            // Left circle (top left bump)
+            const leftCircle = (x + 0.35) * (x + 0.35) + (y - 0.35) * (y - 0.35) < 0.25;
+            
+            // Right circle (top right bump)
+            const rightCircle = (x - 0.35) * (x - 0.35) + (y - 0.35) * (y - 0.35) < 0.25;
+            
+            // Middle rectangle connecting the circles
+            const middleRect = y > 0.1 && y < 0.6 && Math.abs(x) < 0.5;
+            
+            // Bottom triangle pointing down
+            const bottomTriangle = y < 0.1 && Math.abs(x) < (0.5 - y * 0.5);
+            
+            return leftCircle || rightCircle || middleRect || bottomTriangle;
+        }
+        
+        function isInsideSmiley(x, y) {
+            const dist = Math.sqrt(x * x + y * y);
+            
+            // Outer circle - THIN outline only
+            if (dist > 0.85 && dist < 0.92) return true;
+            
+            // Left eye - SMALL solid circle
+            const leftEyeDist = Math.sqrt((x + 0.3) * (x + 0.3) + (y - 0.3) * (y - 0.3));
+            if (leftEyeDist < 0.1) return true;
+            
+            // Right eye - SMALL solid circle
+            const rightEyeDist = Math.sqrt((x - 0.3) * (x - 0.3) + (y - 0.3) * (y - 0.3));
+            if (rightEyeDist < 0.1) return true;
+            
+            // Smile - THIN arc at bottom
+            if (y < 0.05 && y > -0.5 && Math.abs(x) < 0.5) {
+                const smileRadius = 0.45;
+                const smileCenterY = 0.1;
+                const smileY = smileCenterY - Math.sqrt(Math.max(0, smileRadius * smileRadius - x * x));
+                // THIN line
+                if (Math.abs(y - smileY) < 0.06 && y < 0) return true;
+            }
+            
+            return false;
+        }
+
+        function render() {
+            const readFBO = currentFBO === 0 ? fbo1 : fbo2;
+            
+            gl.useProgram(renderProgram);
+            gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+            const pos = gl.getAttribLocation(renderProgram, 'a_position');
+            gl.enableVertexAttribArray(pos);
+            gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+            
+            let colors = colorSchemes[params.colorScheme];
+            
+            // ANIMATED RAINBOW - cycles through colors
+            if (params.colorScheme === 'rainbow') {
+                animationTime += 0.02;
+                const hue1 = animationTime;
+                const hue2 = animationTime + 1.0;
+                const hue3 = animationTime + 2.0;
+                const hue4 = animationTime + 3.0;
+                
+                colors = [
+                    hsvToRgb(hue1 % 6, 1, 1),
+                    hsvToRgb(hue2 % 6, 1, 1),
+                    hsvToRgb(hue3 % 6, 1, 1),
+                    hsvToRgb(hue4 % 6, 1, 1)
+                ];
+            }
+            
+            gl.uniform3fv(gl.getUniformLocation(renderProgram, 'u_c1'), colors[0]);
+            gl.uniform3fv(gl.getUniformLocation(renderProgram, 'u_c2'), colors[1]);
+            gl.uniform3fv(gl.getUniformLocation(renderProgram, 'u_c3'), colors[2]);
+            gl.uniform3fv(gl.getUniformLocation(renderProgram, 'u_c4'), colors[3]);
+            
+            gl.uniform1i(gl.getUniformLocation(renderProgram, 'u_state'), 0);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, readFBO.texture);
+            
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.viewport(0, 0, 512, 512);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        }
+        
+        // Convert HSV to RGB for rainbow animation
+        function hsvToRgb(h, s, v) {
+            const c = v * s;
+            const x = c * (1 - Math.abs((h % 2) - 1));
+            const m = v - c;
+            
+            let r, g, b;
+            if (h < 1) { r = c; g = x; b = 0; }
+            else if (h < 2) { r = x; g = c; b = 0; }
+            else if (h < 3) { r = 0; g = c; b = x; }
+            else if (h < 4) { r = 0; g = x; b = c; }
+            else if (h < 5) { r = x; g = 0; b = c; }
+            else { r = c; g = 0; b = x; }
+            
+            return [r + m, g + m, b + m];
+        }
+
+        function animate() {
+            if (!params.paused) {
+                for (let i = 0; i < 10; i++) {
+                    simulate();
+                }
+            }
+            render();
+            requestAnimationFrame(animate);
+        }
+
+        function getCoords(e) {
+            const rect = canvas.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 512;
+            const y = 512 - ((e.clientY - rect.top) / rect.height) * 512;
+            return { x, y };
+        }
+
+        function onMouseDown(e) {
+            isDrawing = true;
+            const {x, y} = getCoords(e);
+            
+            if (params.stampShape !== 'none') {
+                // Stamp mode - just stamp once
+                applyBrush(x, y);
+                isDrawing = false; // Don't drag stamps
+            } else {
+                // Normal brush mode
+                applyBrush(x, y);
+                lastX = x;
+                lastY = y;
+            }
+        }
+
+        function onMouseMove(e) {
+            if (!isDrawing || params.stampShape !== 'none') return;
+            const {x, y} = getCoords(e);
+            
+            if (lastX !== undefined) {
+                const dx = x - lastX;
+                const dy = y - lastY;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                const steps = Math.ceil(dist / 5);
+                
+                for (let i = 0; i <= steps; i++) {
+                    const t = i / steps;
+                    applyBrush(lastX + dx * t, lastY + dy * t);
+                }
+            }
+            
+            lastX = x;
+            lastY = y;
+        }
+
+        function onMouseUp() {
+            isDrawing = false;
+            lastX = lastY = undefined;
+        }
+
+        function updateParam(name, value) {
+            params[name] = parseFloat(value);
+            document.getElementById(name + '-value').textContent = 
+                name === 'brushSize' ? value : parseFloat(value).toFixed(3);
+        }
+
+        function loadPreset(name) {
+            const p = presets[name];
+            params.feed = p.feed;
+            params.kill = p.kill;
+            params.diffA = p.diffA;
+            params.diffB = p.diffB;
+            
+            document.getElementById('feed').value = p.feed;
+            document.getElementById('feed-value').textContent = p.feed.toFixed(3);
+            document.getElementById('kill').value = p.kill;
+            document.getElementById('kill-value').textContent = p.kill.toFixed(3);
+            document.getElementById('diffA').value = p.diffA;
+            document.getElementById('diffA-value').textContent = p.diffA.toFixed(3);
+            document.getElementById('diffB').value = p.diffB;
+            document.getElementById('diffB-value').textContent = p.diffB.toFixed(3);
+            
+            showStatus(`✓ ${name}`);
+        }
+
+        function setColorScheme(name) {
+            params.colorScheme = name;
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function setBrushMode(mode) {
+            params.brushMode = mode;
+            document.querySelectorAll('.tool-btn').forEach(b => {
+                if (b.textContent.includes('Add') || b.textContent.includes('Remove')) {
+                    b.classList.remove('active');
+                }
+            });
+            event.target.classList.add('active');
+        }
+        
+        function setStamp(shape) {
+            params.stampShape = shape;
+            const stampButtons = document.querySelectorAll('.tool-btn');
+            stampButtons.forEach(b => {
+                if (b.textContent.includes('✏️') || b.textContent.includes('⭐') || 
+                    b.textContent.includes('❤️') || b.textContent.includes('😊')) {
+                    b.classList.remove('active');
+                }
+            });
+            event.target.classList.add('active');
+            
+            if (shape === 'none') {
+                canvas.style.cursor = 'crosshair';
+                showStatus('✏️ Brush mode');
+            } else {
+                canvas.style.cursor = 'pointer';
+                showStatus(`Stamp: ${shape}`);
+            }
+        }
+
+        function togglePause() {
+            params.paused = !params.paused;
+            document.getElementById('pauseToggle').classList.toggle('active');
+        }
+
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
