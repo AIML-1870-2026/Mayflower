@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Julia Set Explorer - Enhanced Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #1a2332;
+            --bg-secondary: #243447;
+            --bg-tertiary: #2d4259;
+            --accent-cyan: #6eb5d0;
+            --accent-pink: #8ba3b8;
+            --accent-yellow: #a8c5da;
+            --accent-green: #7ba591;
+            --text-primary: #e8f1f5;
+            --text-secondary: #a8bfd1;
+            --border: #3d5167;
+        }
+
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        #app {
+            display: flex;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Top Bar */
+        #topBar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            z-index: 100;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent-cyan), var(--accent-pink));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .logo-sub {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .top-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        /* Canvas Container */
+        #canvasContainer {
+            flex: 1;
+            position: relative;
+            margin-top: 60px;
+            background: #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #fractalCanvas {
+            cursor: crosshair;
+            image-rendering: pixelated;
+        }
+
+        /* Education Mode Overlay */
+        .education-overlay {
+            position: absolute;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Path Drawing Canvas Overlay */
+        #pathDrawingCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            cursor: crosshair;
+            z-index: 15;
+            display: none;
+        }
+
+        #pathDrawingCanvas.active {
+            display: block;
+        }
+
+        .path-preview {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: var(--accent-yellow);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            box-shadow: 0 0 10px var(--accent-yellow);
+            z-index: 14;
+        }
+
+        .saved-path-item {
+            position: relative;
+            padding: 0.6rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .saved-path-item:hover {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .saved-path-item.active {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+            background: rgba(0, 255, 136, 0.1);
+        }
+
+        .delete-path-btn {
+            background: transparent;
+            border: none;
+            color: var(--accent-pink);
+            cursor: pointer;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+
+        .delete-path-btn:hover {
+            background: var(--accent-pink);
+            color: var(--bg-primary);
+        }
+
+        .iteration-dot {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: var(--accent-yellow);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px var(--accent-yellow);
+        }
+
+        .iteration-line {
+            position: absolute;
+            height: 2px;
+            background: var(--accent-yellow);
+            opacity: 0.5;
+            transform-origin: left center;
+        }
+
+        /* Control Panel */
+        #controlPanel {
+            width: 350px;
+            margin-top: 60px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border);
+            overflow-y: auto;
+            padding: 1.5rem;
+            transition: transform 0.3s ease;
+        }
+
+        .section {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        /* Mode Toggle with 3 options */
+        .mode-toggle {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 4px;
+            gap: 4px;
+            margin-bottom: 1.5rem;
+        }
+
+        .mode-btn {
+            padding: 0.7rem 0.5rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-family: inherit;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .mode-btn.active {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.8rem 1.2rem;
+            border: 1px solid var(--border);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+        }
+
+        .btn:hover {
+            background: var(--bg-primary);
+            border-color: var(--accent-cyan);
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+            border-color: var(--accent-cyan);
+        }
+
+        .btn-small {
+            padding: 0.5rem 0.8rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        /* Parameter Controls */
+        .param-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .param-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .param-value {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--accent-cyan);
+            font-size: 0.9rem;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            border-radius: 2px;
+            background: var(--bg-tertiary);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            cursor: pointer;
+            border: none;
+        }
+
+        /* Presets Grid */
+        .presets-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.8rem;
+            margin-top: 1rem;
+        }
+
+        .preset-btn {
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+        }
+
+        .preset-btn:hover {
+            background: var(--bg-primary);
+            border-color: var(--accent-pink);
+            transform: translateY(-2px);
+        }
+
+        .preset-name {
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.3rem;
+        }
+
+        .preset-value {
+            font-size: 0.7rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-secondary);
+        }
+
+        /* Color Schemes */
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.6rem;
+        }
+
+        .color-btn {
+            padding: 0.8rem;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+
+        .color-btn.active {
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .color-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        /* Color Gradient Editor */
+        .gradient-editor {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .gradient-preview {
+            height: 30px;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        .color-stops {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .color-stop {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            background: var(--bg-primary);
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+
+        input[type="color"] {
+            width: 40px;
+            height: 30px;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        /* Status Bar */
+        #statusBar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 350px;
+            height: 40px;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 1.5rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            z-index: 50;
+        }
+
+        .status-item {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .status-label {
+            color: var(--text-secondary);
+        }
+
+        .status-value {
+            color: var(--accent-cyan);
+        }
+
+        /* Animation Controls */
+        .animation-controls {
+            background: var(--bg-tertiary);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+        }
+
+        .animation-path-selector {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+            margin: 1rem 0;
+        }
+
+        .path-btn {
+            padding: 0.6rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+
+        .path-btn.active {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        /* Collapsible Sections */
+        .collapsible-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+            margin-bottom: 1rem;
+        }
+
+        .collapsible-content {
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+        }
+
+        .collapsible-content.collapsed {
+            max-height: 0;
+        }
+
+        .toggle-icon {
+            transition: transform 0.3s ease;
+        }
+
+        .toggle-icon.rotated {
+            transform: rotate(180deg);
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal.visible {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            color: var(--accent-cyan);
+        }
+
+        .export-options {
+            display: grid;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .export-option {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .export-option:hover {
+            background: var(--bg-primary);
+            border: 1px solid var(--accent-cyan);
+        }
+
+        .export-label {
+            flex: 1;
+        }
+
+        .export-size {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            #controlPanel {
+                position: fixed;
+                right: 0;
+                top: 60px;
+                bottom: 0;
+                width: 100%;
+                max-width: 350px;
+                z-index: 90;
+            }
+
+            #statusBar {
+                right: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Top Bar -->
+        <div id="topBar">
+            <div>
+                <div class="logo">Julia Set Explorer</div>
+                <div class="logo-sub">Enhanced Edition</div>
+            </div>
+            <div class="top-actions">
+                <button class="btn btn-small" id="resetBtn">Reset</button>
+                <button class="btn btn-small" id="helpBtn">Help</button>
+                <button class="btn btn-small" id="exportBtn">Export HD</button>
+            </div>
+        </div>
+
+        <!-- Canvas Container -->
+        <div id="canvasContainer">
+            <canvas id="fractalCanvas"></canvas>
+            <div class="education-overlay" id="educationOverlay"></div>
+        </div>
+
+        <!-- Control Panel -->
+        <div id="controlPanel">
+            <!-- Mode Toggle -->
+            <div class="mode-toggle">
+                <button class="mode-btn" id="juliaBtn">Julia</button>
+                <button class="mode-btn" id="mandelbrotBtn">Mandelbrot</button>
+                <button class="mode-btn" id="burningShipBtn">Burning Ship</button>
+            </div>
+
+            <!-- Parameter Controls -->
+            <div class="section">
+                <div class="section-title">Parameters</div>
+                
+                <div class="param-group">
+                    <div class="param-label">
+                        <span>Real (a)</span>
+                        <span class="param-value" id="realValue">-0.400</span>
+                    </div>
+                    <input type="range" id="realSlider" min="-2" max="2" step="0.001" value="-0.4">
+                </div>
+
+                <div class="param-group">
+                    <div class="param-label">
+                        <span>Imaginary (b)</span>
+                        <span class="param-value" id="imagValue">0.600</span>
+                    </div>
+                    <input type="range" id="imagSlider" min="-2" max="2" step="0.001" value="0.6">
+                </div>
+
+                <div class="param-group">
+                    <div class="param-label">
+                        <span>Max Iterations</span>
+                        <span class="param-value" id="iterValue">128</span>
+                    </div>
+                    <input type="range" id="iterSlider" min="50" max="1000" step="1" value="128">
+                </div>
+
+                <button class="btn btn-primary" id="renderBtn" style="width: 100%; margin-top: 0.5rem;">
+                    Render Full Quality
+                </button>
+            </div>
+
+            <!-- Education Mode -->
+            <div class="section">
+                <div class="section-title">Education Mode</div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                    Click on the fractal to visualize how a point escapes to infinity
+                </div>
+                <button class="btn btn-small" id="educationToggle" style="width: 100%;">
+                    Enable Iteration Visualizer
+                </button>
+            </div>
+
+            <!-- Presets -->
+            <div class="section">
+                <div class="collapsible-header" id="presetsHeader">
+                    <div class="section-title" style="margin: 0;">Famous Julia Sets</div>
+                    <span class="toggle-icon">▼</span>
+                </div>
+                <div class="collapsible-content" id="presetsContent">
+                    <div class="presets-grid">
+                        <div class="preset-btn" data-real="0" data-imag="1">
+                            <div class="preset-name">Dendrite</div>
+                            <div class="preset-value">0.0 + 1.0i</div>
+                        </div>
+                        <div class="preset-btn" data-real="-0.391" data-imag="-0.587">
+                            <div class="preset-name">Siegel Disk</div>
+                            <div class="preset-value">-0.391 - 0.587i</div>
+                        </div>
+                        <div class="preset-btn" data-real="-0.123" data-imag="0.745">
+                            <div class="preset-name">Rabbit</div>
+                            <div class="preset-value">-0.123 + 0.745i</div>
+                        </div>
+                        <div class="preset-btn" data-real="-0.75" data-imag="0">
+                            <div class="preset-name">Dragon</div>
+                            <div class="preset-value">-0.75 + 0.0i</div>
+                        </div>
+                        <div class="preset-btn" data-real="-0.4" data-imag="0.6">
+                            <div class="preset-name">Spiral</div>
+                            <div class="preset-value">-0.4 + 0.6i</div>
+                        </div>
+                        <div class="preset-btn" data-real="-0.70176" data-imag="-0.3842">
+                            <div class="preset-name">Lightning</div>
+                            <div class="preset-value">-0.702 - 0.384i</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Color Schemes -->
+            <div class="section">
+                <div class="section-title">Color Scheme</div>
+                <div class="color-grid">
+                    <button class="color-btn" data-scheme="rainbow">Rainbow</button>
+                    <button class="color-btn" data-scheme="fire">Fire</button>
+                    <button class="color-btn" data-scheme="ocean">Ocean</button>
+                    <button class="color-btn" data-scheme="grayscale">Grayscale</button>
+                    <button class="color-btn" data-scheme="psychedelic">Psychedelic</button>
+                    <button class="color-btn" data-scheme="midnight">Midnight</button>
+                    <button class="color-btn" data-scheme="custom">Custom</button>
+                    <button class="color-btn" data-scheme="neon">Neon</button>
+                </div>
+                <div class="btn-group" style="margin-top: 1rem;">
+                    <button class="btn btn-small" id="invertBtn">Invert</button>
+                    <button class="btn btn-small" id="cycleBtn">Cycle</button>
+                    <button class="btn btn-small" id="editGradientBtn">Edit Gradient</button>
+                </div>
+
+                <!-- Custom Gradient Editor -->
+                <div class="gradient-editor" id="gradientEditor" style="display: none;">
+                    <div style="font-size: 0.85rem; margin-bottom: 0.5rem; color: var(--text-secondary);">
+                        Custom Gradient
+                    </div>
+                    <div class="gradient-preview" id="gradientPreview"></div>
+                    <div class="color-stops" id="colorStops">
+                        <div class="color-stop">
+                            <input type="color" value="#000000" data-pos="0">
+                            <span style="font-size: 0.75rem; color: var(--text-secondary);">Start</span>
+                        </div>
+                        <div class="color-stop">
+                            <input type="color" value="#ffffff" data-pos="1">
+                            <span style="font-size: 0.75rem; color: var(--text-secondary);">End</span>
+                        </div>
+                    </div>
+                    <button class="btn btn-small" id="applyGradientBtn" style="width: 100%; margin-top: 0.5rem;">
+                        Apply Custom Gradient
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div id="statusBar">
+            <div class="status-item">
+                <span class="status-label">Position:</span>
+                <span class="status-value" id="posDisplay">0.000, 0.000</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Zoom:</span>
+                <span class="status-value" id="zoomDisplay">1.5x</span>
+            </div>
+            <div class="status-item">
+                <span class="status-label">Mode:</span>
+                <span class="status-value" id="modeDisplay">Julia</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Modal -->
+    <div class="modal" id="exportModal">
+        <div class="modal-content">
+            <div class="modal-title">High-Resolution Export</div>
+            <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                Choose a resolution for your export. Higher resolutions take longer to render.
+            </p>
+            <div class="export-options">
+                <div class="export-option" data-scale="1">
+                    <div class="export-label">
+                        <strong>Standard (1x)</strong>
+                        <div class="export-size">Current canvas size</div>
+                    </div>
+                </div>
+                <div class="export-option" data-scale="2">
+                    <div class="export-label">
+                        <strong>High Definition (2x)</strong>
+                        <div class="export-size">Double resolution</div>
+                    </div>
+                </div>
+                <div class="export-option" data-scale="4">
+                    <div class="export-label">
+                        <strong>Ultra HD (4x)</strong>
+                        <div class="export-size">Quadruple resolution - Print quality</div>
+                    </div>
+                </div>
+                <div class="export-option" data-scale="8">
+                    <div class="export-label">
+                        <strong>Maximum (8x)</strong>
+                        <div class="export-size">8x resolution - Poster quality (slow)</div>
+                    </div>
+                </div>
+            </div>
+            <button class="btn" style="width: 100%; margin-top: 1rem;" onclick="document.getElementById('exportModal').classList.remove('visible')">Cancel</button>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal" id="helpModal">
+        <div class="modal-content">
+            <div class="modal-title">Enhanced Features & Shortcuts</div>
+            <div style="margin-bottom: 2rem;">
+                <h3 style="color: var(--accent-cyan); margin-bottom: 0.5rem;">New Features</h3>
+                <ul style="color: var(--text-secondary); line-height: 1.8;">
+                    <li><strong>Burning Ship Fractal:</strong> A related fractal using absolute values</li>
+                    <li><strong>Parameter Animation:</strong> Watch c morph along beautiful paths</li>
+                    <li><strong>Education Mode:</strong> See how points escape to infinity</li>
+                    <li><strong>Custom Gradients:</strong> Create your own color schemes</li>
+                    <li><strong>HD Export:</strong> Generate print-quality images up to 8x resolution</li>
+                </ul>
+            </div>
+            <div>
+                <h3 style="color: var(--accent-cyan); margin-bottom: 0.5rem;">Keyboard Shortcuts</h3>
+                <div style="display: grid; gap: 0.5rem; color: var(--text-secondary);">
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Toggle modes</span>
+                        <kbd style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 3px;">M</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Reset view</span>
+                        <kbd style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 3px;">R</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Cycle colors</span>
+                        <kbd style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 3px;">C</kbd>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Education mode</span>
+                        <kbd style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 3px;">E</kbd>
+                    </div>
+                </div>
+            </div>
+            <button class="btn btn-primary" style="width: 100%; margin-top: 1.5rem;" onclick="document.getElementById('helpModal').classList.remove('visible')">Close</button>
+        </div>
+    </div>
+
+    <script>
+        // Application State
+        const state = {
+            mode: 'julia',
+            cReal: -0.4,
+            cImag: 0.6,
+            centerX: 0,
+            centerY: 0,
+            zoom: 1.5,
+            maxIter: 128,
+            colorScheme: 'rainbow',
+            inverted: false,
+            cycling: false,
+            cycleOffset: 0,
+            iterationData: null,
+            rendering: false,
+            isDragging: false,
+            lastX: 0,
+            lastY: 0,
+            educationMode: false,
+            customGradient: null
+        };
+
+        const canvas = document.getElementById('fractalCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Color Schemes
+        const colorSchemes = {
+            rainbow: (t) => {
+                const r = Math.sin(t * Math.PI * 2) * 127 + 128;
+                const g = Math.sin(t * Math.PI * 2 + 2) * 127 + 128;
+                const b = Math.sin(t * Math.PI * 2 + 4) * 127 + 128;
+                return [r, g, b];
+            },
+            fire: (t) => {
+                const r = t * 255;
+                const g = t * t * 255;
+                const b = t * t * t * 128;
+                return [r, g, b];
+            },
+            ocean: (t) => {
+                const r = t * 64;
+                const g = t * 180 + 75;
+                const b = t * 128 + 127;
+                return [r, g, b];
+            },
+            grayscale: (t) => {
+                const v = t * 255;
+                return [v, v, v];
+            },
+            psychedelic: (t) => {
+                const r = Math.sin(t * Math.PI * 8) * 127 + 128;
+                const g = Math.sin(t * Math.PI * 8 + 2) * 127 + 128;
+                const b = Math.sin(t * Math.PI * 8 + 4) * 127 + 128;
+                return [r, g, b];
+            },
+            midnight: (t) => {
+                const r = t * 64;
+                const g = t * 32;
+                const b = t * 128 + 64;
+                return [r, g, b];
+            },
+            neon: (t) => {
+                const r = t < 0.5 ? t * 510 : 255;
+                const g = t < 0.5 ? 0 : (t - 0.5) * 510;
+                const b = Math.sin(t * Math.PI) * 255;
+                return [r, g, b];
+            },
+            custom: (t) => {
+                if (!state.customGradient) return [t * 255, t * 255, t * 255];
+                // Interpolate between custom gradient stops
+                const stops = state.customGradient;
+                for (let i = 0; i < stops.length - 1; i++) {
+                    if (t >= stops[i].pos && t <= stops[i + 1].pos) {
+                        const localT = (t - stops[i].pos) / (stops[i + 1].pos - stops[i].pos);
+                        const r = stops[i].r + (stops[i + 1].r - stops[i].r) * localT;
+                        const g = stops[i].g + (stops[i + 1].g - stops[i].g) * localT;
+                        const b = stops[i].b + (stops[i + 1].b - stops[i].b) * localT;
+                        return [r, g, b];
+                    }
+                }
+                return [255, 255, 255];
+            }
+        };
+
+        // Animation Paths
+        const animationPaths = {
+            circle: (t, steps = 200) => {
+                const angle = (t / steps) * Math.PI * 2;
+                return {
+                    real: Math.cos(angle) * 0.7,
+                    imag: Math.sin(angle) * 0.7
+                };
+            },
+            spiral: (t, steps = 300) => {
+                const angle = (t / steps) * Math.PI * 4;
+                const radius = (t / steps) * 1.2;
+                return {
+                    real: Math.cos(angle) * radius,
+                    imag: Math.sin(angle) * radius
+                };
+            },
+            figure8: (t, steps = 250) => {
+                const angle = (t / steps) * Math.PI * 2;
+                return {
+                    real: Math.sin(angle) * 0.7,
+                    imag: Math.sin(angle * 2) * 0.5
+                };
+            },
+            random: (t, steps = 400) => {
+                // Smooth random walk using Perlin-like noise
+                const scale = 0.05;
+                return {
+                    real: (Math.sin(t * scale) + Math.sin(t * scale * 2.5)) * 0.5,
+                    imag: (Math.cos(t * scale * 1.7) + Math.cos(t * scale * 3.1)) * 0.5
+                };
+            }
+        };
+
+        // ===== END FRACTAL HUNT GAME =====
+
+        function resizeCanvas() {
+            const container = document.getElementById('canvasContainer');
+            const size = Math.min(container.clientWidth, container.clientHeight - 40);
+            canvas.width = size;
+            canvas.height = size;
+            render();
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // Calculate function with Burning Ship support
+        function calculate(px, py, mode, maxIterOverride) {
+            const maxIter = maxIterOverride || state.maxIter;
+            const x0 = (px - canvas.width / 2) / (canvas.width / 4 / state.zoom) + state.centerX;
+            const y0 = (py - canvas.height / 2) / (canvas.height / 4 / state.zoom) + state.centerY;
+
+            let x = mode === 'julia' || mode === 'burningship' ? x0 : 0;
+            let y = mode === 'julia' || mode === 'burningship' ? y0 : 0;
+            const cx = mode === 'julia' || mode === 'burningship' ? state.cReal : x0;
+            const cy = mode === 'julia' || mode === 'burningship' ? state.cImag : y0;
+
+            const path = [];
+            let iter = 0;
+
+            while (iter < maxIter && x * x + y * y < 4) {
+                if (state.educationMode && path.length < 50) {
+                    path.push({ x, y });
+                }
+
+                // Burning Ship uses absolute values
+                if (mode === 'burningship') {
+                    x = Math.abs(x);
+                    y = Math.abs(y);
+                }
+
+                const xTemp = x * x - y * y + cx;
+                y = 2 * x * y + cy;
+                x = xTemp;
+                iter++;
+            }
+
+            return { iter, path };
+        }
+
+        function render(fast = false) {
+            if (state.rendering) return;
+            
+            state.rendering = true;
+            document.getElementById('modeDisplay').textContent = 
+                state.mode === 'julia' ? 'Julia' : 
+                state.mode === 'mandelbrot' ? 'Mandelbrot' : 'Burning Ship';
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Use slightly lower quality for fast rendering (slider dragging)
+            const quality = fast ? 0.85 : 1.0;
+            const renderWidth = Math.floor(width * quality);
+            const renderHeight = Math.floor(height * quality);
+            const maxIter = state.maxIter;
+            
+            state.iterationData = new Uint16Array(renderWidth * renderHeight);
+            
+            for (let py = 0; py < renderHeight; py++) {
+                for (let px = 0; px < renderWidth; px++) {
+                    const scaledPx = px / quality;
+                    const scaledPy = py / quality;
+                    const { iter } = calculate(scaledPx, scaledPy, state.mode, maxIter);
+                    const idx = py * renderWidth + px;
+                    state.iterationData[idx] = iter;
+                }
+            }
+            
+            applyColors();
+            
+            state.rendering = false;
+        }
+
+        function applyColors() {
+            if (!state.iterationData) return;
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Determine if we're using scaled data
+            const dataWidth = Math.sqrt(state.iterationData.length * (width / height));
+            const dataHeight = state.iterationData.length / dataWidth;
+            const scale = width / dataWidth;
+            
+            const imageData = ctx.createImageData(width, height);
+            const data = imageData.data;
+            const colorFunc = colorSchemes[state.colorScheme];
+            const maxIter = state.maxIter;
+            
+            // Use bilinear interpolation for better quality when scaled
+            const useInterpolation = scale > 1.1;
+            
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    let iter;
+                    
+                    if (useInterpolation) {
+                        // Bilinear interpolation for smoother scaling
+                        const srcX = x / scale;
+                        const srcY = y / scale;
+                        const x0 = Math.floor(srcX);
+                        const y0 = Math.floor(srcY);
+                        const x1 = Math.min(x0 + 1, dataWidth - 1);
+                        const y1 = Math.min(y0 + 1, dataHeight - 1);
+                        const fx = srcX - x0;
+                        const fy = srcY - y0;
+                        
+                        const i00 = state.iterationData[y0 * dataWidth + x0] || 0;
+                        const i10 = state.iterationData[y0 * dataWidth + x1] || 0;
+                        const i01 = state.iterationData[y1 * dataWidth + x0] || 0;
+                        const i11 = state.iterationData[y1 * dataWidth + x1] || 0;
+                        
+                        iter = Math.round(
+                            i00 * (1 - fx) * (1 - fy) +
+                            i10 * fx * (1 - fy) +
+                            i01 * (1 - fx) * fy +
+                            i11 * fx * fy
+                        );
+                    } else {
+                        const srcX = Math.floor(x / scale);
+                        const srcY = Math.floor(y / scale);
+                        const srcIdx = srcY * dataWidth + srcX;
+                        iter = state.iterationData[srcIdx] || 0;
+                    }
+                    
+                    let t = iter / maxIter;
+                    
+                    if (state.cycling) {
+                        t = (t + state.cycleOffset) % 1;
+                    }
+                    
+                    let [r, g, b] = colorFunc(t);
+                    
+                    if (state.inverted) {
+                        r = 255 - r;
+                        g = 255 - g;
+                        b = 255 - b;
+                    }
+                    
+                    const idx = (y * width + x) * 4;
+                    data[idx] = r;
+                    data[idx + 1] = g;
+                    data[idx + 2] = b;
+                    data[idx + 3] = 255;
+                }
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        // High-resolution export
+        function exportHighRes(scale) {
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            const baseSize = canvas.width;
+            tempCanvas.width = baseSize * scale;
+            tempCanvas.height = baseSize * scale;
+
+            document.getElementById('modeDisplay').textContent = `Rendering ${scale}x...`;
+
+            // Render at high resolution
+            setTimeout(() => {
+                const tempData = new Uint16Array(tempCanvas.width * tempCanvas.height);
+                
+                for (let py = 0; py < tempCanvas.height; py++) {
+                    for (let px = 0; px < tempCanvas.width; px++) {
+                        const { iter } = calculate(px / scale, py / scale, state.mode);
+                        tempData[py * tempCanvas.width + px] = iter;
+                    }
+                }
+
+                // Apply colors
+                const imageData = tempCtx.createImageData(tempCanvas.width, tempCanvas.height);
+                const data = imageData.data;
+                const colorFunc = colorSchemes[state.colorScheme];
+
+                for (let i = 0; i < tempData.length; i++) {
+                    const iter = tempData[i];
+                    const t = iter / state.maxIter;
+                    let [r, g, b] = colorFunc(t);
+                    
+                    if (state.inverted) {
+                        r = 255 - r;
+                        g = 255 - g;
+                        b = 255 - b;
+                    }
+
+                    const idx = i * 4;
+                    data[idx] = r;
+                    data[idx + 1] = g;
+                    data[idx + 2] = b;
+                    data[idx + 3] = 255;
+                }
+
+                tempCtx.putImageData(imageData, 0, 0);
+
+                // Download
+                const link = document.createElement('a');
+                link.download = `julia-${state.mode}-${scale}x-${Date.now()}.png`;
+                link.href = tempCanvas.toDataURL();
+                link.click();
+
+                document.getElementById('modeDisplay').textContent = 
+                    state.mode === 'julia' ? 'Julia' : 
+                    state.mode === 'mandelbrot' ? 'Mandelbrot' : 'Burning Ship';
+                document.getElementById('exportModal').classList.remove('visible');
+            }, 100);
+        }
+
+        // Education Mode - Visualize point iteration
+        function visualizeIteration(px, py) {
+            const overlay = document.getElementById('educationOverlay');
+            overlay.innerHTML = '';
+
+            const { path } = calculate(px, py, state.mode);
+
+            if (path.length === 0) return;
+
+            // Convert complex coordinates back to canvas coordinates
+            const scale = canvas.width / 4 / state.zoom;
+            
+            path.forEach((point, i) => {
+                const canvasX = (point.x - state.centerX) * scale + canvas.width / 2;
+                const canvasY = (point.y - state.centerY) * scale + canvas.height / 2;
+
+                // Create dot
+                const dot = document.createElement('div');
+                dot.className = 'iteration-dot';
+                dot.style.left = canvasX + 'px';
+                dot.style.top = canvasY + 'px';
+                dot.style.opacity = 1 - (i / path.length) * 0.7;
+                overlay.appendChild(dot);
+
+                // Create line to next point
+                if (i < path.length - 1) {
+                    const nextPoint = path[i + 1];
+                    const nextX = (nextPoint.x - state.centerX) * scale + canvas.width / 2;
+                    const nextY = (nextPoint.y - state.centerY) * scale + canvas.height / 2;
+
+                    const line = document.createElement('div');
+                    line.className = 'iteration-line';
+                    const angle = Math.atan2(nextY - canvasY, nextX - canvasX);
+                    const length = Math.sqrt((nextX - canvasX) ** 2 + (nextY - canvasY) ** 2);
+                    
+                    line.style.left = canvasX + 'px';
+                    line.style.top = canvasY + 'px';
+                    line.style.width = length + 'px';
+                    line.style.transform = `rotate(${angle}rad)`;
+                    overlay.appendChild(line);
+                }
+            });
+
+            // Auto-clear after 3 seconds
+            setTimeout(() => {
+                overlay.innerHTML = '';
+            }, 3000);
+        }
+
+        // Animation
+        function startAnimation(pathType) {
+            state.animating = true;
+            state.animationPath = pathType;
+            state.animationIndex = 0;
+
+            document.getElementById('startAnimBtn').disabled = true;
+            document.getElementById('stopAnimBtn').disabled = false;
+
+            function animate() {
+                if (!state.animating) return;
+
+                const params = animationPaths[pathType](state.animationIndex);
+                state.cReal = params.real;
+                state.cImag = params.imag;
+                
+                document.getElementById('realSlider').value = params.real;
+                document.getElementById('imagSlider').value = params.imag;
+                document.getElementById('realValue').textContent = params.real.toFixed(3);
+                document.getElementById('imagValue').textContent = params.imag.toFixed(3);
+
+                render();
+
+                state.animationIndex++;
+                setTimeout(animate, state.animationSpeed);
+            }
+
+            animate();
+        }
+
+        function stopAnimation() {
+            state.animating = false;
+            document.getElementById('startAnimBtn').disabled = false;
+            document.getElementById('stopAnimBtn').disabled = true;
+        }
+
+        // Mouse Controls
+        canvas.addEventListener('mousedown', (e) => {
+            state.isDragging = true;
+            state.lastX = e.clientX;
+            state.lastY = e.clientY;
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const px = e.clientX - rect.left;
+            const py = e.clientY - rect.top;
+            const x = (px - canvas.width / 2) / (canvas.width / 4 / state.zoom) + state.centerX;
+            const y = (py - canvas.height / 2) / (canvas.height / 4 / state.zoom) + state.centerY;
+            document.getElementById('posDisplay').textContent = `${x.toFixed(3)}, ${y.toFixed(3)}`;
+
+            if (state.isDragging && state.mode === 'julia') {
+                const dx = e.clientX - state.lastX;
+                const dy = e.clientY - state.lastY;
+                state.centerX -= dx / (canvas.width / 4 / state.zoom);
+                state.centerY -= dy / (canvas.height / 4 / state.zoom);
+                state.lastX = e.clientX;
+                state.lastY = e.clientY;
+                render();
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            state.isDragging = false;
+        });
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const px = e.clientX - rect.left;
+            const py = e.clientY - rect.top;
+
+            if (state.educationMode) {
+                visualizeIteration(px, py);
+            } else if (state.mode === 'mandelbrot') {
+                const x = (px - canvas.width / 2) / (canvas.width / 4 / state.zoom) + state.centerX;
+                const y = (py - canvas.height / 2) / (canvas.height / 4 / state.zoom) + state.centerY;
+                
+                state.cReal = x;
+                state.cImag = y;
+                state.mode = 'julia';
+                
+                document.getElementById('realSlider').value = x;
+                document.getElementById('imagSlider').value = y;
+                document.getElementById('realValue').textContent = x.toFixed(3);
+                document.getElementById('imagValue').textContent = y.toFixed(3);
+                document.getElementById('juliaBtn').classList.add('active');
+                document.getElementById('mandelbrotBtn').classList.remove('active');
+                document.getElementById('burningShipBtn').classList.remove('active');
+                
+                render();
+            }
+        });
+
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+            state.zoom *= zoomFactor;
+            document.getElementById('zoomDisplay').textContent = `${state.zoom.toFixed(2)}x`;
+            render();
+        });
+
+        // Parameter Controls
+        let renderTimeout = null;
+        
+        document.getElementById('realSlider').addEventListener('input', (e) => {
+            state.cReal = parseFloat(e.target.value);
+            document.getElementById('realValue').textContent = state.cReal.toFixed(3);
+            if (state.mode === 'julia' || state.mode === 'burningship') {
+                // Debounce rendering
+                clearTimeout(renderTimeout);
+                renderTimeout = setTimeout(() => {
+                    render(true); // Fast render
+                }, 50);
+            }
+        });
+
+        document.getElementById('imagSlider').addEventListener('input', (e) => {
+            state.cImag = parseFloat(e.target.value);
+            document.getElementById('imagValue').textContent = state.cImag.toFixed(3);
+            if (state.mode === 'julia' || state.mode === 'burningship') {
+                // Debounce rendering
+                clearTimeout(renderTimeout);
+                renderTimeout = setTimeout(() => {
+                    render(true); // Fast render
+                }, 50);
+            }
+        });
+
+        document.getElementById('iterSlider').addEventListener('input', (e) => {
+            state.maxIter = parseInt(e.target.value);
+            document.getElementById('iterValue').textContent = state.maxIter;
+        });
+
+        // Mode Toggle
+        document.getElementById('juliaBtn').addEventListener('click', () => {
+            state.mode = 'julia';
+            document.getElementById('juliaBtn').classList.add('active');
+            document.getElementById('mandelbrotBtn').classList.remove('active');
+            document.getElementById('burningShipBtn').classList.remove('active');
+            render();
+        });
+
+        document.getElementById('mandelbrotBtn').addEventListener('click', () => {
+            state.mode = 'mandelbrot';
+            document.getElementById('mandelbrotBtn').classList.add('active');
+            document.getElementById('juliaBtn').classList.remove('active');
+            document.getElementById('burningShipBtn').classList.remove('active');
+            render();
+        });
+
+        document.getElementById('burningShipBtn').addEventListener('click', () => {
+            state.mode = 'burningship';
+            state.cReal = -0.5;
+            state.cImag = -0.6;
+            document.getElementById('realSlider').value = -0.5;
+            document.getElementById('imagSlider').value = -0.6;
+            document.getElementById('realValue').textContent = '-0.500';
+            document.getElementById('imagValue').textContent = '-0.600';
+            document.getElementById('burningShipBtn').classList.add('active');
+            document.getElementById('juliaBtn').classList.remove('active');
+            document.getElementById('mandelbrotBtn').classList.remove('active');
+            render();
+        });
+
+        // Education Mode
+        document.getElementById('educationToggle').addEventListener('click', function() {
+            state.educationMode = !state.educationMode;
+            this.textContent = state.educationMode ? 
+                'Disable Iteration Visualizer' : 
+                'Enable Iteration Visualizer';
+            this.style.background = state.educationMode ? 'var(--accent-green)' : '';
+            this.style.color = state.educationMode ? 'var(--bg-primary)' : '';
+            
+            if (!state.educationMode) {
+                document.getElementById('educationOverlay').innerHTML = '';
+            }
+        });
+
+        // Presets
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const real = parseFloat(btn.dataset.real);
+                const imag = parseFloat(btn.dataset.imag);
+                state.cReal = real;
+                state.cImag = imag;
+                state.mode = 'julia';
+                
+                document.getElementById('realSlider').value = real;
+                document.getElementById('imagSlider').value = imag;
+                document.getElementById('realValue').textContent = real.toFixed(3);
+                document.getElementById('imagValue').textContent = imag.toFixed(3);
+                document.getElementById('juliaBtn').classList.add('active');
+                document.getElementById('mandelbrotBtn').classList.remove('active');
+                document.getElementById('burningShipBtn').classList.remove('active');
+                
+                render();
+            });
+        });
+
+        // Color Schemes
+        document.querySelectorAll('.color-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                state.colorScheme = btn.dataset.scheme;
+                document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                applyColors();
+            });
+        });
+
+        document.querySelector('.color-btn[data-scheme="rainbow"]').classList.add('active');
+
+        // Color Controls
+        document.getElementById('invertBtn').addEventListener('click', () => {
+            state.inverted = !state.inverted;
+            applyColors();
+        });
+
+        document.getElementById('cycleBtn').addEventListener('click', () => {
+            state.cycling = !state.cycling;
+            if (state.cycling) {
+                function cycle() {
+                    if (!state.cycling) return;
+                    state.cycleOffset = (state.cycleOffset + 0.005) % 1;
+                    applyColors();
+                    requestAnimationFrame(cycle);
+                }
+                cycle();
+            }
+        });
+
+        // Custom Gradient Editor
+        document.getElementById('editGradientBtn').addEventListener('click', () => {
+            const editor = document.getElementById('gradientEditor');
+            editor.style.display = editor.style.display === 'none' ? 'block' : 'none';
+        });
+
+        document.getElementById('applyGradientBtn').addEventListener('click', () => {
+            const stops = [];
+            document.querySelectorAll('#colorStops input[type="color"]').forEach(input => {
+                const color = input.value;
+                const r = parseInt(color.substr(1, 2), 16);
+                const g = parseInt(color.substr(3, 2), 16);
+                const b = parseInt(color.substr(5, 2), 16);
+                const pos = parseFloat(input.dataset.pos);
+                stops.push({ r, g, b, pos });
+            });
+            stops.sort((a, b) => a.pos - b.pos);
+            state.customGradient = stops;
+            state.colorScheme = 'custom';
+            document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.color-btn[data-scheme="custom"]').classList.add('active');
+            applyColors();
+            
+            // Update preview
+            updateGradientPreview();
+        });
+
+        function updateGradientPreview() {
+            const preview = document.getElementById('gradientPreview');
+            const colors = [];
+            document.querySelectorAll('#colorStops input[type="color"]').forEach(input => {
+                colors.push(input.value);
+            });
+            preview.style.background = `linear-gradient(90deg, ${colors.join(', ')})`;
+        }
+
+        document.querySelectorAll('#colorStops input[type="color"]').forEach(input => {
+            input.addEventListener('input', updateGradientPreview);
+        });
+
+        updateGradientPreview();
+
+        // Buttons
+        document.getElementById('renderBtn').addEventListener('click', () => render(false));
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            state.centerX = 0;
+            state.centerY = 0;
+            state.zoom = 1.5;
+            state.cReal = -0.4;
+            state.cImag = 0.6;
+            state.maxIter = 128;
+            state.mode = 'julia';
+            
+            document.getElementById('realSlider').value = -0.4;
+            document.getElementById('imagSlider').value = 0.6;
+            document.getElementById('iterSlider').value = 128;
+            document.getElementById('realValue').textContent = '-0.400';
+            document.getElementById('imagValue').textContent = '0.600';
+            document.getElementById('iterValue').textContent = '128';
+            document.getElementById('zoomDisplay').textContent = '1.50x';
+            document.getElementById('juliaBtn').classList.add('active');
+            document.getElementById('mandelbrotBtn').classList.remove('active');
+            document.getElementById('burningShipBtn').classList.remove('active');
+            
+            render();
+        });
+
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            document.getElementById('exportModal').classList.add('visible');
+        });
+
+        document.querySelectorAll('.export-option').forEach(option => {
+            option.addEventListener('click', () => {
+                const scale = parseInt(option.dataset.scale);
+                exportHighRes(scale);
+            });
+        });
+
+        document.getElementById('helpBtn').addEventListener('click', () => {
+            document.getElementById('helpModal').classList.add('visible');
+        });
+
+        // Modal click outside to close
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('visible');
+                }
+            });
+        });
+
+        // Collapsible sections
+        document.getElementById('presetsHeader').addEventListener('click', () => {
+            const content = document.getElementById('presetsContent');
+            const icon = document.querySelector('#presetsHeader .toggle-icon');
+            content.classList.toggle('collapsed');
+            icon.classList.toggle('rotated');
+        });
+
+
+        // Keyboard Shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'm' || e.key === 'M') {
+                const modes = ['julia', 'mandelbrot', 'burningship'];
+                const currentIndex = modes.indexOf(state.mode);
+                const nextIndex = (currentIndex + 1) % modes.length;
+                state.mode = modes[nextIndex];
+                
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                if (state.mode === 'julia') document.getElementById('juliaBtn').classList.add('active');
+                else if (state.mode === 'mandelbrot') document.getElementById('mandelbrotBtn').classList.add('active');
+                else document.getElementById('burningShipBtn').classList.add('active');
+                
+                render();
+            } else if (e.key === 'r' || e.key === 'R') {
+                document.getElementById('resetBtn').click();
+            } else if (e.key === 'c' || e.key === 'C') {
+                const schemes = Object.keys(colorSchemes).filter(s => s !== 'custom');
+                const currentIndex = schemes.indexOf(state.colorScheme);
+                const nextIndex = (currentIndex + 1) % schemes.length;
+                state.colorScheme = schemes[nextIndex];
+                document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+                document.querySelector(`.color-btn[data-scheme="${state.colorScheme}"]`).classList.add('active');
+                applyColors();
+            } else if (e.key === 'e' || e.key === 'E') {
+                document.getElementById('educationToggle').click();
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                render();
+            }
+        });
+
+        // Initial render
+        document.getElementById('juliaBtn').classList.add('active');
+        render();
+    </script>
+</body>
+</html>
