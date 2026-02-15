@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decision Neuron Quest</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800&family=Quicksand:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Quicksand', sans-serif;
+            background: linear-gradient(135deg, #ffeef8 0%, #ffd6e8 50%, #ffbbdb 100%);
+            color: #4a2c3e;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .header h1 {
+            font-family: 'Poppins', sans-serif;
+            font-size: clamp(2rem, 5vw, 2.8rem);
+            font-weight: 800;
+            background: linear-gradient(135deg, #ff6b9d, #ff8fab, #ffa8c5);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+            letter-spacing: -1px;
+        }
+
+        .header .subtitle {
+            font-size: clamp(0.9rem, 2vw, 1rem);
+            color: #8e6b7f;
+            font-weight: 600;
+        }
+
+        .view-toggle {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .view-btn {
+            padding: 10px 20px;
+            font-size: 12px;
+            font-weight: 700;
+            border: 3px solid transparent;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: 'Poppins', sans-serif;
+            background: white;
+            color: #c06c84;
+            box-shadow: 0 4px 15px rgba(255, 107, 157, 0.2);
+        }
+
+        .view-btn.active {
+            background: linear-gradient(135deg, #ff6b9d, #ff8fab);
+            color: white;
+            box-shadow: 0 6px 25px rgba(255, 107, 157, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .view-btn:hover:not(.active) {
+            border-color: #ff8fab;
+            transform: translateY(-2px);
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 340px 1fr 360px;
+            gap: 18px;
+        }
+
+        @media (max-width: 1400px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: white;
+            border: 3px solid #ffd6e8;
+            border-radius: 20px;
+            padding: 22px;
+            box-shadow: 0 10px 40px rgba(255, 107, 157, 0.15);
+        }
+
+        .panel-title {
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #ff6b9d;
+            margin-bottom: 18px;
+        }
+
+        .scenario-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .scenario-btn {
+            padding: 10px 8px;
+            border: 2px solid #ffd6e8;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 700;
+            font-size: 11px;
+            color: #6c5b7b;
+            transition: all 0.2s;
+            text-align: center;
+        }
+
+        .scenario-btn.active {
+            background: linear-gradient(135deg, #ff6b9d, #ff8fab);
+            color: white;
+            border-color: #ff6b9d;
+        }
+
+        .scenario-btn:hover:not(.active) {
+            border-color: #ff8fab;
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .input-label {
+            font-size: 11px;
+            color: #6c5b7b;
+            font-weight: 700;
+        }
+
+        .input-value {
+            font-size: 14px;
+            font-weight: 800;
+            color: #ff6b9d;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 7px;
+            border-radius: 10px;
+            outline: none;
+            -webkit-appearance: none;
+            background: linear-gradient(to right, #ffeef8, #ffd6e8);
+            border: 2px solid #ffe0f0;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b9d, #ff8fab);
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(255, 107, 157, 0.5);
+            transition: all 0.2s;
+            border: 2px solid white;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #ff6b9d, #ff8fab);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 4px 15px rgba(255, 107, 157, 0.5);
+        }
+
+        .weight-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+        .weight-badge.positive {
+            background: #d4f1e8;
+            color: #2d6a4f;
+            border: 1px solid #52b788;
+        }
+
+        .weight-badge.negative {
+            background: #ffd4e5;
+            color: #c9184a;
+            border: 1px solid #ff6b9d;
+        }
+
+        .bias-section {
+            background: linear-gradient(135deg, #fff5f9, #ffebf3);
+            border: 3px solid #ffd6e8;
+            padding: 16px;
+            border-radius: 16px;
+            margin-bottom: 14px;
+        }
+
+        .bias-label {
+            font-size: 12px;
+            font-weight: 800;
+            color: #ff6b9d;
+            margin-bottom: 6px;
+        }
+
+        .bias-value {
+            font-size: 15px;
+            font-weight: 800;
+            color: #ff6b9d;
+        }
+
+        .bias-track {
+            display: flex;
+            justify-content: space-between;
+            font-size: 9px;
+            color: #8e6b7f;
+            margin-top: 6px;
+            font-weight: 600;
+        }
+
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 550px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #fff9fc, #fff0f7);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+
+        .decision-overlay {
+            position: absolute;
+            bottom: 25px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 255, 255, 0.95);
+            border: 3px solid #ffd6e8;
+            border-radius: 20px;
+            padding: 18px 36px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 40px rgba(255, 107, 157, 0.25);
+        }
+
+        .decision-text {
+            font-family: 'Poppins', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            margin-bottom: 6px;
+            letter-spacing: 1px;
+        }
+
+        .decision-text.yes {
+            color: #52b788;
+        }
+
+        .decision-text.no {
+            color: #ff6b9d;
+        }
+
+        .confidence-value {
+            font-size: 36px;
+            font-weight: 900;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .confidence-label {
+            font-size: 10px;
+            color: #8e6b7f;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-top: 4px;
+            font-weight: 700;
+        }
+
+        .training-section {
+            background: linear-gradient(135deg, #fff5f9, #ffebf3);
+            border: 3px solid #ffd6e8;
+            border-radius: 16px;
+            padding: 16px;
+            margin-bottom: 14px;
+        }
+
+        .training-controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .control-btn {
+            padding: 10px;
+            font-size: 11px;
+            font-weight: 700;
+            border: 2px solid;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .control-btn.train {
+            background: linear-gradient(135deg, #d4f1e8, #b8e6d5);
+            color: #2d6a4f;
+            border-color: #52b788;
+        }
+
+        .control-btn.train:hover {
+            background: #52b788;
+            color: white;
+        }
+
+        .control-btn.step {
+            background: linear-gradient(135deg, #e0f7ff, #b8e6f7);
+            color: #0077b6;
+            border-color: #90e0ef;
+        }
+
+        .control-btn.step:hover {
+            background: #48cae4;
+            color: white;
+        }
+
+        .control-btn.reset {
+            background: linear-gradient(135deg, #ffd4e5, #ffc2d9);
+            color: #c9184a;
+            border-color: #ff6b9d;
+        }
+
+        .control-btn.reset:hover {
+            background: #ff6b9d;
+            color: white;
+        }
+
+        .control-btn.add {
+            background: linear-gradient(135deg, #ffe5d9, #ffd4c4);
+            color: #d16014;
+            border-color: #f4a261;
+        }
+
+        .control-btn.add:hover {
+            background: #f4a261;
+            color: white;
+        }
+
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #ffe0f0;
+            font-size: 11px;
+        }
+
+        .metric-row:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: #8e6b7f;
+            font-weight: 700;
+        }
+
+        .metric-value {
+            font-weight: 800;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .metric-value.good {
+            color: #52b788;
+        }
+
+        .metric-value.bad {
+            color: #ff6b9d;
+        }
+
+        .preset-datasets {
+            margin-top: 12px;
+        }
+
+        .preset-btn {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 6px;
+            border: 2px solid #ffd6e8;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            font-size: 10px;
+            font-weight: 700;
+            color: #6c5b7b;
+            transition: all 0.2s;
+        }
+
+        .preset-btn:hover {
+            background: #fff5f9;
+            border-color: #ff8fab;
+        }
+
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 2px solid #ffd6e8;
+            border-radius: 10px;
+            font-family: 'Quicksand', sans-serif;
+            font-weight: 700;
+            font-size: 11px;
+            color: #6c5b7b;
+            background: white;
+            margin-bottom: 10px;
+        }
+
+        .activation-selector {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 14px;
+        }
+
+        .activation-btn {
+            flex: 1;
+            padding: 8px;
+            border: 2px solid #ffd6e8;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 10px;
+            color: #6c5b7b;
+            transition: all 0.2s;
+        }
+
+        .activation-btn.active {
+            background: linear-gradient(135deg, #ff6b9d, #ff8fab);
+            color: white;
+            border-color: #ff6b9d;
+        }
+
+        .math-box {
+            background: linear-gradient(135deg, #fff5f9, #ffebf3);
+            border: 2px solid #ffd6e8;
+            padding: 12px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            font-size: 11px;
+            line-height: 1.6;
+        }
+
+        .math-var {
+            color: #ff6b9d;
+            font-weight: 800;
+        }
+
+        .math-num {
+            color: #52b788;
+            font-weight: 800;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const sigmoid = (z) => 1 / (1 + Math.exp(-z));
+        const stepFunction = (z) => z >= 0 ? 1 : 0;
+        const relu = (z) => Math.max(0, z);
+
+        const SCENARIOS = {
+            swipeRight: {
+                emoji: "💘",
+                title: "Swipe Right?",
+                inputs: {
+                    attractiveness: { label: "Attractiveness", min: 0, max: 10, step: 0.5, initial: 5 },
+                    bioQuality: { label: "Bio Quality", min: 0, max: 10, step: 0.5, initial: 5 },
+                    sharedInterests: { label: "Shared Interests", min: 0, max: 10, step: 0.5, initial: 5 },
+                    distance: { label: "Distance (mi)", min: 0, max: 100, step: 5, initial: 25 },
+                    ageMatch: { label: "Age Match", min: 0, max: 10, step: 0.5, initial: 5 }
+                },
+                weights: { attractiveness: 0.8, bioQuality: 0.4, sharedInterests: 0.6, distance: -0.02, ageMatch: 0.3 },
+                yesText: "💚 SWIPE RIGHT",
+                noText: "💔 SWIPE LEFT"
+            },
+            adoptPet: {
+                emoji: "🐕",
+                title: "Adopt Pet?",
+                inputs: {
+                    cuteness: { label: "Cuteness", min: 0, max: 10, step: 0.5, initial: 7 },
+                    energy: { label: "Energy Level", min: 0, max: 10, step: 0.5, initial: 5 },
+                    size: { label: "Size", min: 0, max: 10, step: 1, initial: 5 },
+                    age: { label: "Age (years)", min: 0, max: 15, step: 1, initial: 3 },
+                    maintenance: { label: "Maintenance", min: 0, max: 10, step: 0.5, initial: 5 }
+                },
+                weights: { cuteness: 0.7, energy: -0.3, size: 0.2, age: -0.4, maintenance: -0.6 },
+                yesText: "🐾 ADOPT",
+                noText: "❌ PASS"
+            },
+            cookOrOrder: {
+                emoji: "🍳",
+                title: "Cook or Order?",
+                inputs: {
+                    hunger: { label: "Hunger Level", min: 0, max: 10, step: 0.5, initial: 7 },
+                    energy: { label: "Energy Level", min: 0, max: 10, step: 0.5, initial: 5 },
+                    budget: { label: "Budget", min: 0, max: 10, step: 0.5, initial: 5 },
+                    groceries: { label: "Groceries Avail", min: 0, max: 10, step: 0.5, initial: 6 },
+                    time: { label: "Time Available", min: 0, max: 10, step: 0.5, initial: 5 }
+                },
+                weights: { hunger: 0.5, energy: 0.6, budget: -0.5, groceries: 0.7, time: 0.5 },
+                yesText: "🍳 COOK",
+                noText: "🍕 ORDER"
+            },
+            exercise: {
+                emoji: "💪",
+                title: "Exercise Today?",
+                inputs: {
+                    energy: { label: "Energy Level", min: 0, max: 10, step: 0.5, initial: 5 },
+                    motivation: { label: "Motivation", min: 0, max: 10, step: 0.5, initial: 5 },
+                    soreness: { label: "Soreness", min: 0, max: 10, step: 0.5, initial: 3 },
+                    weather: { label: "Weather", min: 0, max: 10, step: 0.5, initial: 7 },
+                    daysSince: { label: "Days Since Last", min: 0, max: 7, step: 1, initial: 2 }
+                },
+                weights: { energy: 0.7, motivation: 0.8, soreness: -0.6, weather: 0.3, daysSince: 0.4 },
+                yesText: "💪 EXERCISE",
+                noText: "😴 REST"
+            },
+            tvSeries: {
+                emoji: "📺",
+                title: "Start Series?",
+                inputs: {
+                    rating: { label: "IMDb Rating", min: 0, max: 10, step: 0.5, initial: 8 },
+                    genre: { label: "Genre Match", min: 0, max: 10, step: 0.5, initial: 7 },
+                    seasons: { label: "# Seasons", min: 1, max: 10, step: 1, initial: 3 },
+                    commitment: { label: "Time Available", min: 0, max: 10, step: 0.5, initial: 5 },
+                    friendRec: { label: "Friend Rec", min: 0, max: 10, step: 0.5, initial: 6 }
+                },
+                weights: { rating: 0.6, genre: 0.8, seasons: -0.3, commitment: 0.5, friendRec: 0.4 },
+                yesText: "📺 WATCH",
+                noText: "⏭️ SKIP"
+            },
+            emailSpam: {
+                emoji: "📧",
+                title: "Is Spam?",
+                inputs: {
+                    suspWords: { label: "Suspicious Words", min: 0, max: 10, step: 0.5, initial: 3 },
+                    unknownSender: { label: "Unknown Sender", min: 0, max: 10, step: 0.5, initial: 5 },
+                    urgency: { label: "Urgent Language", min: 0, max: 10, step: 0.5, initial: 4 },
+                    links: { label: "# of Links", min: 0, max: 10, step: 1, initial: 2 },
+                    grammar: { label: "Poor Grammar", min: 0, max: 10, step: 0.5, initial: 3 }
+                },
+                weights: { suspWords: 0.8, unknownSender: 0.6, urgency: 0.7, links: 0.5, grammar: 0.6 },
+                yesText: "🚫 SPAM",
+                noText: "✅ LEGIT"
+            },
+            jobApply: {
+                emoji: "💼",
+                title: "Apply to Job?",
+                inputs: {
+                    salary: { label: "Salary Match", min: 0, max: 10, step: 0.5, initial: 7 },
+                    skillMatch: { label: "Skill Match", min: 0, max: 10, step: 0.5, initial: 6 },
+                    commute: { label: "Commute", min: 0, max: 10, step: 0.5, initial: 5 },
+                    culture: { label: "Culture Fit", min: 0, max: 10, step: 0.5, initial: 6 },
+                    growth: { label: "Growth Potential", min: 0, max: 10, step: 0.5, initial: 7 }
+                },
+                weights: { salary: 0.7, skillMatch: 0.8, commute: 0.4, culture: 0.6, growth: 0.7 },
+                yesText: "📝 APPLY",
+                noText: "🚫 PASS"
+            },
+            college: {
+                emoji: "🎓",
+                title: "Choose College?",
+                inputs: {
+                    ranking: { label: "Ranking", min: 0, max: 10, step: 0.5, initial: 7 },
+                    cost: { label: "Affordability", min: 0, max: 10, step: 0.5, initial: 5 },
+                    distance: { label: "Distance (mi)", min: 0, max: 3000, step: 100, initial: 500 },
+                    vibe: { label: "Campus Vibe", min: 0, max: 10, step: 0.5, initial: 6 },
+                    program: { label: "Program Strength", min: 0, max: 10, step: 0.5, initial: 7 }
+                },
+                weights: { ranking: 0.6, cost: 0.5, distance: -0.001, vibe: 0.4, program: 0.7 },
+                yesText: "🎉 ENROLL",
+                noText: "🚫 DECLINE"
+            }
+        };
+
+        function DecisionNeuronQuest() {
+            const [trainingMode, setTrainingMode] = useState(false);
+            const [scenario, setScenario] = useState('swipeRight');
+            const [activationFunc, setActivationFunc] = useState('sigmoid');
+            
+            const config = SCENARIOS[scenario];
+            
+            const getInitialInputs = (scenarioKey) => {
+                const cfg = SCENARIOS[scenarioKey];
+                const initialInputs = {};
+                Object.keys(cfg.inputs).forEach(key => {
+                    initialInputs[key] = cfg.inputs[key].initial;
+                });
+                return initialInputs;
+            };
+            
+            const [inputs, setInputs] = useState(() => getInitialInputs('swipeRight'));
+            const [weights, setWeights] = useState(() => ({...SCENARIOS.swipeRight.weights}));
+            const [bias, setBias] = useState(-5);
+            const [dataPoints, setDataPoints] = useState([]);
+            const [trainingSteps, setTrainingSteps] = useState(0);
+            const [trainingSpeed, setTrainingSpeed] = useState(100);
+            const [isAutoTraining, setIsAutoTraining] = useState(false);
+            
+            const canvasRef = useRef(null);
+
+            useEffect(() => {
+                const newConfig = SCENARIOS[scenario];
+                const newInputs = getInitialInputs(scenario);
+                setInputs(newInputs);
+                setWeights({...newConfig.weights});
+                setBias(-5);
+                setDataPoints([]);
+                setTrainingSteps(0);
+                setIsAutoTraining(false);
+            }, [scenario]);
+
+            const calculateOutput = (inputVals, weightVals, biasVal) => {
+                let z = biasVal;
+                for (let key in config.inputs) {
+                    if (key in inputVals && key in weightVals) {
+                        z += inputVals[key] * weightVals[key];
+                    }
+                }
+                
+                let output;
+                if (activationFunc === 'sigmoid') output = sigmoid(z);
+                else if (activationFunc === 'step') output = stepFunction(z);
+                else if (activationFunc === 'relu') output = Math.min(relu(z) / 10, 1);
+                
+                return { z, output };
+            };
+
+            const { z, output } = calculateOutput(inputs, weights, bias);
+            const decision = output >= 0.5 ? 'YES' : 'NO';
+
+            const trainStep = () => {
+                if (dataPoints.length === 0) return;
+
+                const learningRate = 0.1;
+                let gradW = Object.keys(weights).reduce((acc, key) => ({...acc, [key]: 0}), {});
+                let gradB = 0;
+
+                dataPoints.forEach(point => {
+                    const { output: prediction } = calculateOutput(point.inputs, weights, bias);
+                    const error = point.label - prediction;
+
+                    for (let key in weights) {
+                        gradW[key] += learningRate * error * point.inputs[key];
+                    }
+                    gradB += learningRate * error;
+                });
+
+                const newWeights = Object.keys(weights).reduce((acc, key) => ({
+                    ...acc,
+                    [key]: weights[key] + gradW[key]
+                }), {});
+
+                setWeights(newWeights);
+                setBias(bias + gradB);
+                setTrainingSteps(trainingSteps + 1);
+            };
+
+            const trainMultiple = async (steps = 10) => {
+                for (let i = 0; i < steps; i++) {
+                    trainStep();
+                    await new Promise(resolve => setTimeout(resolve, trainingSpeed));
+                }
+            };
+
+            const resetTraining = () => {
+                setWeights({...config.weights});
+                setBias(-5);
+                setDataPoints([]);
+                setTrainingSteps(0);
+                setIsAutoTraining(false);
+            };
+
+            const addRandomPoint = () => {
+                const randomInputs = {};
+                for (let key in config.inputs) {
+                    const cfg = config.inputs[key];
+                    randomInputs[key] = cfg.min + Math.random() * (cfg.max - cfg.min);
+                }
+                const { output: prediction } = calculateOutput(randomInputs, weights, bias);
+                const label = prediction >= 0.5 ? 1 : 0;
+                setDataPoints([...dataPoints, { inputs: randomInputs, label }]);
+            };
+
+            const loadPresetDataset = (type) => {
+                const presets = {
+                    linearlySeparable: () => {
+                        const points = [];
+                        const keys = Object.keys(inputs);
+                        for (let i = 0; i < 20; i++) {
+                            const testInputs = {};
+                            for (let key of keys) {
+                                testInputs[key] = config.inputs[key].min + Math.random() * (config.inputs[key].max - config.inputs[key].min);
+                            }
+                            const { output } = calculateOutput(testInputs, config.weights, -5);
+                            points.push({ inputs: testInputs, label: output >= 0.5 ? 1 : 0 });
+                        }
+                        return points;
+                    },
+                    allYes: () => {
+                        const points = [];
+                        for (let i = 0; i < 15; i++) {
+                            const testInputs = {};
+                            for (let key in config.inputs) {
+                                testInputs[key] = config.inputs[key].max * 0.7 + Math.random() * config.inputs[key].max * 0.3;
+                            }
+                            points.push({ inputs: testInputs, label: 1 });
+                        }
+                        return points;
+                    },
+                    allNo: () => {
+                        const points = [];
+                        for (let i = 0; i < 15; i++) {
+                            const testInputs = {};
+                            for (let key in config.inputs) {
+                                testInputs[key] = config.inputs[key].min + Math.random() * config.inputs[key].max * 0.3;
+                            }
+                            points.push({ inputs: testInputs, label: 0 });
+                        }
+                        return points;
+                    }
+                };
+                
+                if (presets[type]) {
+                    setDataPoints(presets[type]());
+                }
+            };
+
+            const calculateAccuracy = () => {
+                if (dataPoints.length === 0) return 0;
+                let correct = 0;
+                dataPoints.forEach(point => {
+                    const { output: prediction } = calculateOutput(point.inputs, weights, bias);
+                    const predictedLabel = prediction >= 0.5 ? 1 : 0;
+                    if (predictedLabel === point.label) correct++;
+                });
+                return (correct / dataPoints.length) * 100;
+            };
+
+            const accuracy = calculateAccuracy();
+
+            useEffect(() => {
+                if (isAutoTraining && dataPoints.length > 0) {
+                    const interval = setInterval(() => {
+                        trainStep();
+                    }, trainingSpeed);
+                    return () => clearInterval(interval);
+                }
+            }, [isAutoTraining, dataPoints, weights, bias, trainingSpeed]);
+
+            useEffect(() => {
+                if (!canvasRef.current) return;
+
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                const width = canvas.width;
+                const height = canvas.height;
+
+                try {
+                    ctx.clearRect(0, 0, width, height);
+
+                    const centerX = width / 2;
+                    const centerY = height / 2;
+                    const neuronRadius = 75;
+                    const inputRadius = 240;
+
+                    const inputKeys = Object.keys(config.inputs);
+                    const angleStep = (Math.PI * 2) / inputKeys.length;
+                    
+                    inputKeys.forEach((key, index) => {
+                        // Safety check
+                        if (!(key in inputs) || !(key in weights)) return;
+                        
+                        const angle = index * angleStep - Math.PI / 2;
+                        const x = centerX + Math.cos(angle) * inputRadius;
+                        const y = centerY + Math.sin(angle) * inputRadius;
+                        
+                        const weight = weights[key];
+                        const inputValue = inputs[key];
+                        const contribution = weight * inputValue;
+                    
+                    const gradient = ctx.createLinearGradient(x, y, centerX, centerY);
+                    if (weight >= 0) {
+                        gradient.addColorStop(0, 'rgba(82, 183, 136, 0.8)');
+                        gradient.addColorStop(1, 'rgba(168, 223, 201, 0.8)');
+                    } else {
+                        gradient.addColorStop(0, 'rgba(255, 107, 157, 0.8)');
+                        gradient.addColorStop(1, 'rgba(255, 139, 171, 0.8)');
+                    }
+                    
+                    ctx.strokeStyle = gradient;
+                    ctx.lineWidth = Math.abs(weight) * 7 + 2;
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = weight >= 0 ? 'rgba(82, 183, 136, 0.4)' : 'rgba(255, 107, 157, 0.4)';
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(centerX, centerY);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                    
+                    const nodeGradient = ctx.createRadialGradient(x, y, 0, x, y, 11);
+                    if (weight >= 0) {
+                        nodeGradient.addColorStop(0, '#52b788');
+                        nodeGradient.addColorStop(1, '#40916c');
+                    } else {
+                        nodeGradient.addColorStop(0, '#ff8fab');
+                        nodeGradient.addColorStop(1, '#ff6b9d');
+                    }
+                    
+                    ctx.fillStyle = nodeGradient;
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = weight >= 0 ? '#52b788' : '#ff6b9d';
+                    ctx.beginPath();
+                    ctx.arc(x, y, 11, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 2;
+                    ctx.shadowBlur = 0;
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = '#4a2c3e';
+                    ctx.font = 'bold 9px Quicksand';
+                    ctx.textAlign = 'center';
+                    
+                    const labelOffset = 35;
+                    const labelX = centerX + Math.cos(angle) * (inputRadius + labelOffset);
+                    const labelY = centerY + Math.sin(angle) * (inputRadius + labelOffset);
+                    
+                    const label = config.inputs[key].label;
+                    ctx.fillText(label, labelX, labelY);
+                    
+                    ctx.fillStyle = '#ff6b9d';
+                    ctx.font = 'bold 11px Poppins';
+                    ctx.fillText(inputValue.toFixed(1), labelX, labelY + 14);
+                    
+                    ctx.fillStyle = weight >= 0 ? '#52b788' : '#ff6b9d';
+                    ctx.font = 'bold 8px Quicksand';
+                    const weightText = `${weight >= 0 ? '+' : ''}${weight.toFixed(2)}`;
+                    ctx.fillText(weightText, x, y - 18);
+                    
+                    if (trainingMode) {
+                        const midX = (x + centerX) / 2;
+                        const midY = (y + centerY) / 2;
+                        ctx.font = 'bold 8px Quicksand';
+                        const contribText = (contribution >= 0 ? '+' : '') + contribution.toFixed(2);
+                        ctx.fillStyle = 'white';
+                        const textWidth = ctx.measureText(contribText).width;
+                        ctx.fillRect(midX - textWidth/2 - 2, midY - 6, textWidth + 4, 12);
+                        ctx.fillStyle = weight >= 0 ? '#52b788' : '#ff6b9d';
+                        ctx.fillText(contribText, midX, midY);
+                    }
+                });
+                
+                const gradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, neuronRadius);
+                if (output >= 0.5) {
+                    gradient.addColorStop(0, 'rgba(82, 183, 136, 0.9)');
+                    gradient.addColorStop(0.6, 'rgba(168, 223, 201, 0.5)');
+                    gradient.addColorStop(1, 'rgba(212, 241, 232, 0)');
+                } else {
+                    gradient.addColorStop(0, 'rgba(255, 107, 157, 0.9)');
+                    gradient.addColorStop(0.6, 'rgba(255, 139, 171, 0.5)');
+                    gradient.addColorStop(1, 'rgba(255, 194, 217, 0)');
+                }
+                
+                ctx.fillStyle = gradient;
+                ctx.shadowBlur = 30;
+                ctx.shadowColor = output >= 0.5 ? 'rgba(82, 183, 136, 0.5)' : 'rgba(255, 107, 157, 0.5)';
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, neuronRadius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                ctx.strokeStyle = output >= 0.5 ? '#52b788' : '#ff6b9d';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, neuronRadius, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 32px Poppins';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowBlur = 3;
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+                ctx.fillText(`${(output * 100).toFixed(0)}%`, centerX, centerY);
+                ctx.shadowBlur = 0;
+                
+                } catch (error) {
+                    console.error('Canvas error:', error);
+                }
+                
+            }, [inputs, weights, bias, output, config, trainingMode, scenario]);
+
+            return (
+                <div className="app-container">
+                    <div className="header">
+                        <h1>{config.emoji} {config.title}</h1>
+                        <p className="subtitle">Interactive Neural Decision Explorer</p>
+                    </div>
+
+                    <div className="view-toggle">
+                        <button className={`view-btn ${!trainingMode ? 'active' : ''}`} onClick={() => setTrainingMode(false)}>
+                            🎯 Explore Mode
+                        </button>
+                        <button className={`view-btn ${trainingMode ? 'active' : ''}`} onClick={() => setTrainingMode(true)}>
+                            🎓 Training Mode
+                        </button>
+                    </div>
+
+                    <div className="main-layout">
+                        <div className="panel">
+                            <div className="panel-title">⚙️ CONFIG</div>
+                            
+                            <div style={{fontSize: '11px', fontWeight: 800, color: '#8e6b7f', marginBottom: '10px'}}>SCENARIO</div>
+                            <div className="scenario-grid">
+                                {Object.keys(SCENARIOS).map(key => (
+                                    <button
+                                        key={key}
+                                        className={`scenario-btn ${scenario === key ? 'active' : ''}`}
+                                        onClick={() => setScenario(key)}
+                                    >
+                                        {SCENARIOS[key].emoji} {SCENARIOS[key].title}
+                                    </button>
+                                ))}
+                            </div>
+
+                            <div style={{fontSize: '11px', fontWeight: 800, color: '#8e6b7f', marginTop: '14px', marginBottom: '10px'}}>ACTIVATION</div>
+                            <div className="activation-selector">
+                                <button className={`activation-btn ${activationFunc === 'sigmoid' ? 'active' : ''}`} onClick={() => setActivationFunc('sigmoid')}>
+                                    Sigmoid
+                                </button>
+                                <button className={`activation-btn ${activationFunc === 'step' ? 'active' : ''}`} onClick={() => setActivationFunc('step')}>
+                                    Step
+                                </button>
+                                <button className={`activation-btn ${activationFunc === 'relu' ? 'active' : ''}`} onClick={() => setActivationFunc('relu')}>
+                                    ReLU
+                                </button>
+                            </div>
+
+                            <div style={{fontSize: '11px', fontWeight: 800, color: '#8e6b7f', marginBottom: '10px'}}>INPUTS</div>
+                            {Object.keys(config.inputs).map(key => {
+                                const cfg = config.inputs[key];
+                                const currentValue = inputs[key] !== undefined ? inputs[key] : cfg.initial;
+                                const currentWeight = weights[key] !== undefined ? weights[key] : 0;
+                                return (
+                                    <div key={key} className="input-group">
+                                        <div className="input-header">
+                                            <span className="input-label">{cfg.label}</span>
+                                            <span className="input-value">{currentValue.toFixed(1)}</span>
+                                        </div>
+                                        <input 
+                                            type="range"
+                                            min={cfg.min}
+                                            max={cfg.max}
+                                            step={cfg.step}
+                                            value={currentValue}
+                                            onChange={(e) => setInputs({...inputs, [key]: parseFloat(e.target.value)})}
+                                        />
+                                        <div style={{textAlign: 'right'}}>
+                                            <span className={`weight-badge ${currentWeight >= 0 ? 'positive' : 'negative'}`}>
+                                                w: {currentWeight >= 0 ? '+' : ''}{currentWeight.toFixed(2)}
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+
+                            <div className="bias-section">
+                                <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                                    <div className="bias-label">Bias</div>
+                                    <div className="bias-value">{bias.toFixed(2)}</div>
+                                </div>
+                                <input 
+                                    type="range"
+                                    min={-10}
+                                    max={0}
+                                    step={0.1}
+                                    value={bias}
+                                    onChange={(e) => setBias(parseFloat(e.target.value))}
+                                />
+                                <div className="bias-track">
+                                    <span>😒 Picky</span>
+                                    <span>😐 Neutral</span>
+                                    <span>😍 Eager</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="panel">
+                            <div className="panel-title">🧠 NEURON</div>
+                            
+                            <div className="canvas-container">
+                                <canvas ref={canvasRef} width={650} height={550} />
+                                
+                                <div className="decision-overlay">
+                                    <div className={`decision-text ${decision.toLowerCase()}`}>
+                                        {decision === 'YES' ? config.yesText : config.noText}
+                                    </div>
+                                    <div className="confidence-value" style={{color: output >= 0.5 ? '#52b788' : '#ff6b9d'}}>
+                                        {(output * 100).toFixed(1)}%
+                                    </div>
+                                    <div className="confidence-label">
+                                        {activationFunc} output
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="panel">
+                            <div className="panel-title">📊 {trainingMode ? 'TRAINING' : 'MATH'}</div>
+                            
+                            {!trainingMode ? (
+                                <>
+                                    <div className="math-box">
+                                        <div><span className="math-var">z</span> = Σ(x<sub>i</sub> × w<sub>i</sub>) + b</div>
+                                        <div style={{marginTop: '6px'}}>
+                                            <span className="math-var">out</span> = {activationFunc}(z)
+                                        </div>
+                                    </div>
+
+                                    <div style={{background: '#fff5f9', border: '2px solid #ffd6e8', borderRadius: '12px', padding: '12px', marginBottom: '10px'}}>
+                                        <div style={{fontSize: '9px', color: '#8e6b7f', marginBottom: '4px'}}>SCORE</div>
+                                        <div style={{fontSize: '16px', fontWeight: 800, color: '#ff6b9d'}}>
+                                            z = <span className="math-num">{z.toFixed(3)}</span>
+                                        </div>
+                                        <div style={{fontSize: '16px', fontWeight: 800, color: '#52b788', marginTop: '4px'}}>
+                                            out = <span className="math-num">{(output * 100).toFixed(2)}%</span>
+                                        </div>
+                                    </div>
+
+                                    <div style={{fontSize: '10px', color: '#8e6b7f', lineHeight: '1.5'}}>
+                                        Each input × weight, summed with bias. Activation converts to probability.
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <div className="training-section">
+                                        <div className="training-controls">
+                                            <button className="control-btn add" onClick={addRandomPoint}>
+                                                + Add Point
+                                            </button>
+                                            <button className="control-btn step" onClick={trainStep}>
+                                                → Step
+                                            </button>
+                                            <button className="control-btn train" onClick={() => trainMultiple(10)}>
+                                                ▶ Train 10x
+                                            </button>
+                                            <button className="control-btn reset" onClick={resetTraining}>
+                                                ⟲ Reset
+                                            </button>
+                                        </div>
+
+                                        <div className="metric-row">
+                                            <span className="metric-label">Steps</span>
+                                            <span className="metric-value">{trainingSteps}</span>
+                                        </div>
+                                        <div className="metric-row">
+                                            <span className="metric-label">Accuracy</span>
+                                            <span className={`metric-value ${accuracy >= 80 ? 'good' : 'bad'}`}>
+                                                {accuracy.toFixed(0)}%
+                                            </span>
+                                        </div>
+                                        <div className="metric-row">
+                                            <span className="metric-label">Data Points</span>
+                                            <span className="metric-value">{dataPoints.length}</span>
+                                        </div>
+
+                                        <div style={{marginTop: '12px'}}>
+                                            <div style={{fontSize: '10px', color: '#8e6b7f', fontWeight: 700, marginBottom: '6px'}}>Speed</div>
+                                            <select value={trainingSpeed} onChange={(e) => setTrainingSpeed(parseInt(e.target.value))}>
+                                                <option value="200">Slow</option>
+                                                <option value="100">Medium</option>
+                                                <option value="50">Fast</option>
+                                                <option value="10">Very Fast</option>
+                                            </select>
+                                        </div>
+
+                                        <button 
+                                            className={`control-btn ${isAutoTraining ? 'reset' : 'train'}`}
+                                            onClick={() => setIsAutoTraining(!isAutoTraining)}
+                                            style={{width: '100%'}}
+                                        >
+                                            {isAutoTraining ? '⏸ Stop' : '▶ Auto-Train'}
+                                        </button>
+                                    </div>
+
+                                    <div className="preset-datasets">
+                                        <div style={{fontSize: '10px', fontWeight: 800, color: '#8e6b7f', marginBottom: '8px'}}>PRESETS</div>
+                                        <button className="preset-btn" onClick={() => loadPresetDataset('linearlySeparable')}>
+                                            📊 Linear Data
+                                        </button>
+                                        <button className="preset-btn" onClick={() => loadPresetDataset('allYes')}>
+                                            ✅ All Yes
+                                        </button>
+                                        <button className="preset-btn" onClick={() => loadPresetDataset('allNo')}>
+                                            ❌ All No
+                                        </button>
+                                    </div>
+
+                                    <div style={{fontSize: '10px', color: '#8e6b7f', marginTop: '12px', lineHeight: '1.5'}}>
+                                        <strong>Live Weights:</strong>
+                                        {Object.keys(weights).map(key => (
+                                            <div key={key} style={{marginTop: '4px'}}>
+                                                {config.inputs[key].label}: <span style={{color: weights[key] >= 0 ? '#52b788' : '#ff6b9d', fontWeight: 800}}>
+                                                    {weights[key] >= 0 ? '+' : ''}{weights[key].toFixed(3)}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.render(<DecisionNeuronQuest />, document.getElementById('root'));
+    </script>
+</body>
+</html>
