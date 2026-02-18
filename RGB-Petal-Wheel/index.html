@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Chromalava</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#0c0804}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+@keyframes rippleOut{0%{transform:scale(0.3);opacity:1}100%{transform:scale(2.5);opacity:0}}
+input:focus{outline:none!important;border-color:rgba(212,160,23,0.6)!important}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:#1a1208}
+::-webkit-scrollbar-thumb{background:#8b6914;border-radius:2px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState, useEffect, useRef, useCallback} = React;
+
+// COLOR MATH
+function rgbToHex(r,g,b) {
+  return "#" + [r,g,b].map(v => Math.round(v).toString(16).padStart(2,"0")).join("").toUpperCase();
+}
+function hexToRgb(hex) {
+  const h = hex.replace("#","");
+  return {r:parseInt(h.slice(0,2),16), g:parseInt(h.slice(2,4),16), b:parseInt(h.slice(4,6),16)};
+}
+function rgbToHsl(r,g,b) {
+  r/=255; g/=255; b/=255;
+  const mx=Math.max(r,g,b), mn=Math.min(r,g,b);
+  let h,s,l=(mx+mn)/2;
+  if(mx===mn){h=s=0;}
+  else {
+    const d=mx-mn;
+    s=l>0.5?d/(2-mx-mn):d/(mx+mn);
+    if(mx===r) h=((g-b)/d+(g<b?6:0))/6;
+    else if(mx===g) h=((b-r)/d+2)/6;
+    else h=((r-g)/d+4)/6;
+  }
+  return {h:h*360, s:s*100, l:l*100};
+}
+function hslToRgb(h,s,l) {
+  h/=360; s/=100; l/=100;
+  if(s===0) { const v=Math.round(l*255); return {r:v,g:v,b:v}; }
+  const q=l<0.5?l*(1+s):l+s-l*s, p=2*l-q;
+  const hue2=(p,q,t)=>{if(t<0)t+=1;if(t>1)t-=1;if(t<1/6)return p+(q-p)*6*t;if(t<1/2)return q;if(t<2/3)return p+(q-p)*(2/3-t)*6;return p;};
+  return {r:Math.round(hue2(p,q,h+1/3)*255), g:Math.round(hue2(p,q,h)*255), b:Math.round(hue2(p,q,h-1/3)*255)};
+}
+function wcagLum(r,g,b) {
+  const f=v=>{v/=255; return v<=0.03928?v/12.92:Math.pow((v+0.055)/1.055,2.4);};
+  return 0.2126*f(r)+0.7152*f(g)+0.0722*f(b);
+}
+function contrastRatio(r1,g1,b1,r2,g2,b2) {
+  const l1=wcagLum(r1,g1,b1), l2=wcagLum(r2,g2,b2);
+  return (Math.max(l1,l2)+0.05)/(Math.min(l1,l2)+0.05);
+}
+function generateHarmony(r,g,b,type) {
+  const {h,s,l}=rgbToHsl(r,g,b);
+  const at=(hue,sat=s,lig=l)=>{const c=hslToRgb((hue%360+360)%360,Math.min(100,Math.max(5,sat)),Math.min(92,Math.max(8,lig)));return rgbToHex(c.r,c.g,c.b);};
+  const base=rgbToHex(r,g,b);
+  switch(type){
+    case "complementary": return [base,at(h+180),at(h+180,s,l-20),at(h,s,l+22),at(h,s,l-25)];
+    case "analogous": return [at(h-40),at(h-20),base,at(h+20),at(h+40)];
+    case "triadic": return [base,at(h+120),at(h+240),at(h+60,s,l+15),at(h+180,s,l-15)];
+    case "split-complementary": return [base,at(h+150),at(h+210),at(h+150,s,l+20),at(h+210,s,l-20)];
+    case "tetradic": return [base,at(h+90),at(h+180),at(h+270),at(h+45,s,l+10)];
+    default: return [base];
+  }
+}
+function autoAdjust(hex,bgHex,minRatio=4.5) {
+  const bg=hexToRgb(bgHex), orig=hexToRgb(hex);
+  const {h,s,l:origL}=rgbToHsl(orig.r,orig.g,orig.b);
+  for(let step=0;step<=50;step++) {
+    for(const dir of [1,-1]) {
+      const newL=Math.min(95,Math.max(5,origL+dir*step));
+      const c=hslToRgb(h,s,newL);
+      if(contrastRatio(c.r,c.g,c.b,bg.r,bg.g,bg.b)>=minRatio)
+        return {hex:rgbToHex(c.r,c.g,c.b), adjusted:step>0, originalHex:hex};
+    }
+  }
+  return {hex, adjusted:false, originalHex:hex};
+}
+
+// CB MATRICES — flat 9-element row-major [r_new = m[0]*r + m[1]*g + m[2]*b, ...]
+const CB_M = {
+  protanopia:   [0.567,0.433,0, 0.558,0.442,0, 0,0.242,0.758],
+  deuteranopia: [0.625,0.375,0, 0.7,0.3,0,     0,0.3,0.7    ],
+  tritanopia:   [0.95,0.05,0,   0,0.433,0.567, 0,0.475,0.525],
+};
+function cbSimColor(r,g,b,type) {
+  const m=CB_M[type]; if(!m) return {r,g,b};
+  return {
+    r: Math.min(255,Math.max(0,Math.round(m[0]*r+m[1]*g+m[2]*b))),
+    g: Math.min(255,Math.max(0,Math.round(m[3]*r+m[4]*g+m[5]*b))),
+    b: Math.min(255,Math.max(0,Math.round(m[6]*r+m[7]*g+m[8]*b))),
+  };
+}
+// Apply CB matrix to every pixel of an ImageData object, in-place
+function applyMatrixPixels(imgData, type) {
+  const m=CB_M[type]; if(!m) return;
+  const d=imgData.data;
+  for(let i=0;i<d.length;i+=4) {
+    const r=d[i], g=d[i+1], b=d[i+2];
+    d[i]   = Math.min(255,Math.max(0,Math.round(m[0]*r+m[1]*g+m[2]*b)));
+    d[i+1] = Math.min(255,Math.max(0,Math.round(m[3]*r+m[4]*g+m[5]*b)));
+    d[i+2] = Math.min(255,Math.max(0,Math.round(m[6]*r+m[7]*g+m[8]*b)));
+  }
+}
+
+// BLOB CANVAS
+// cbType=null: render normal. cbType="protanopia" etc: apply pixel-level CB transform after drawing.
+function BlobCanvas({rgb, cbType, onColorPick, label}) {
+  const canvasRef = useRef(null);
+  const animRef   = useRef(null);
+  const offRef    = useRef(null);
+  const stateRef  = useRef({
+    t: 0,
+    blobs: [
+      {cx:0.32, cy:0.50, r:0, phase:0.0, vx:0.0006,  vy:-0.0005, mp:0.0, ms:0.018},
+      {cx:0.62, cy:0.45, r:0, phase:2.1, vx:-0.0005, vy:0.0006,  mp:1.4, ms:0.014},
+      {cx:0.47, cy:0.68, r:0, phase:4.2, vx:0.0004,  vy:0.0003,  mp:2.8, ms:0.016},
+    ],
+  });
+  const rgbRef    = useRef(rgb);    rgbRef.current    = rgb;
+  const cbTypeRef = useRef(cbType); cbTypeRef.current = cbType;
+
+  const [hoverColor, setHoverColor] = useState(null);
+  const [ripple,     setRipple]     = useState(null);
+
+  const samplePixel = useCallback((e) => {
+    const off = offRef.current; if(!off) return null;
+    const canvas = canvasRef.current; if(!canvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const sx = off.width/rect.width, sy = off.height/rect.height;
+    const x = Math.round((e.clientX-rect.left)*sx);
+    const y = Math.round((e.clientY-rect.top)*sy);
+    const px = off.getContext("2d").getImageData(x,y,1,1).data;
+    return {r:px[0], g:px[1], b:px[2], cx:e.clientX-rect.left, cy:e.clientY-rect.top};
+  }, []);
+
+  const handleClick = useCallback((e) => {
+    if(!onColorPick) return;
+    const px = samplePixel(e); if(!px) return;
+    if(px.r+px.g+px.b > 20) {
+      setRipple({x:px.cx, y:px.cy, key:Date.now()});
+      setTimeout(() => setRipple(null), 700);
+      onColorPick(px.r, px.g, px.b);
+    }
+  }, [samplePixel, onColorPick]);
+
+  const handleMouseMove = useCallback((e) => {
+    const px = samplePixel(e); if(!px) return;
+    setHoverColor(px.r+px.g+px.b > 20 ? rgbToHex(px.r,px.g,px.b) : null);
+  }, [samplePixel]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current; if(!canvas) return;
+    const W = canvas.width, H = canvas.height;
+    const ctx = canvas.getContext("2d", {willReadFrequently: true});
+
+    // offscreen buffer — always pure RGB, never transformed
+    const off = document.createElement("canvas");
+    off.width = W; off.height = H;
+    offRef.current = off;
+    const octx = off.getContext("2d", {willReadFrequently: true});
+
+    const BASE = [[255,0,0],[0,255,0],[0,0,255]];
+
+    function blobPath(c,cx,cy,rad,t,mp) {
+      c.beginPath();
+      for(let i=0;i<=14;i++) {
+        const a = (i/14)*Math.PI*2;
+        const n = Math.sin(a*2+t*0.9+mp)*0.20 + Math.sin(a*4-t*0.55+mp*1.4)*0.12 + Math.sin(a*7+t*1.2+mp*0.6)*0.06;
+        c.lineTo(cx+Math.cos(a)*rad*(1+n), cy+Math.sin(a)*rad*(1+n));
+      }
+      c.closePath();
+    }
+
+    function drawBlob(c,cx,cy,rad,t,mp,col,val) {
+      if(rad < 3) return;
+      const [cr,cg,cb] = col, iv = 0.45+(val/255)*0.55;
+      c.save(); c.globalCompositeOperation = "lighter";
+      const og = c.createRadialGradient(cx,cy,0,cx,cy,rad*2.2);
+      og.addColorStop(0,   `rgba(${cr},${cg},${cb},${(iv*0.35).toFixed(3)})`);
+      og.addColorStop(0.5, `rgba(${cr},${cg},${cb},${(iv*0.15).toFixed(3)})`);
+      og.addColorStop(1,   `rgba(${cr},${cg},${cb},0)`);
+      c.fillStyle = og; c.beginPath(); c.arc(cx,cy,rad*2.2,0,Math.PI*2); c.fill();
+      blobPath(c,cx,cy,rad,t,mp);
+      const g2 = c.createRadialGradient(cx,cy,0,cx,cy,rad*1.3);
+      g2.addColorStop(0,    `rgba(${cr},${cg},${cb},${(iv*0.92).toFixed(3)})`);
+      g2.addColorStop(0.55, `rgba(${cr},${cg},${cb},${(iv*0.65).toFixed(3)})`);
+      g2.addColorStop(1,    `rgba(${cr},${cg},${cb},0)`);
+      c.fillStyle = g2; c.fill();
+      c.beginPath(); c.arc(cx,cy,rad*0.4,0,Math.PI*2);
+      const hg = c.createRadialGradient(cx,cy,0,cx,cy,rad*0.4);
+      hg.addColorStop(0, `rgba(${Math.min(255,cr+80)},${Math.min(255,cg+80)},${Math.min(255,cb+80)},${(iv*0.7).toFixed(3)})`);
+      hg.addColorStop(1, `rgba(${cr},${cg},${cb},0)`);
+      c.fillStyle = hg; c.fill();
+      c.restore();
+    }
+
+    function render() {
+      const s = stateRef.current;
+      s.t += 1;
+      const ch = [rgbRef.current.r, rgbRef.current.g, rgbRef.current.b];
+
+      // Step 1: draw pure RGB blobs onto offscreen buffer
+      octx.globalCompositeOperation = "source-over";
+      octx.fillStyle = "rgb(8,5,2)"; octx.fillRect(0,0,W,H);
+      s.blobs.forEach((blob,i) => {
+        const val = ch[i];
+        blob.cx += blob.vx * Math.sin(s.t*0.011+blob.phase);
+        blob.cy += blob.vy * Math.cos(s.t*0.009+blob.phase*1.3);
+        if(blob.cx < 0.18) blob.vx =  Math.abs(blob.vx);
+        if(blob.cx > 0.82) blob.vx = -Math.abs(blob.vx);
+        blob.cy += (0.75-(val/255)*0.58 - blob.cy) * 0.014;
+        blob.cy = Math.max(0.08, Math.min(0.92, blob.cy));
+        blob.cx += (0.47-blob.cx) * ((ch[0]+ch[1]+ch[2])/(3*255)) * 0.008;
+        blob.mp += blob.ms;
+        blob.r  += ((val/255)*H*0.27 + (val>8?10:0) - blob.r) * 0.07;
+        drawBlob(octx, blob.cx*W, blob.cy*H, blob.r, s.t*0.038, blob.mp, BASE[i], val);
+      });
+      // gold rim
+      octx.globalCompositeOperation = "source-over";
+      const rim = octx.createLinearGradient(0,0,0,H);
+      rim.addColorStop(0,    "rgba(212,160,23,0.10)");
+      rim.addColorStop(0.12, "rgba(212,160,23,0)");
+      rim.addColorStop(0.88, "rgba(212,160,23,0)");
+      rim.addColorStop(1,    "rgba(212,160,23,0.10)");
+      octx.fillStyle = rim; octx.fillRect(0,0,W,H);
+
+      // Step 2: copy to visible canvas, with optional CB pixel transform
+      const cbt = cbTypeRef.current;
+      if(cbt) {
+        const imgData = octx.getImageData(0,0,W,H);
+        applyMatrixPixels(imgData, cbt);
+        ctx.putImageData(imgData, 0, 0);
+      } else {
+        ctx.drawImage(off, 0, 0);
+      }
+
+      animRef.current = requestAnimationFrame(render);
+    }
+    animRef.current = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(animRef.current);
+  }, []);
+
+  const {r,g,b} = rgb;
+  const canInteract = !!onColorPick;
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+      {label && (
+        <div style={{fontFamily:"'Courier Prime',monospace",fontSize:9,letterSpacing:2,
+          color: cbType ? "#ff9500" : "rgba(184,134,11,0.55)",
+          border: cbType ? "1px solid rgba(255,149,0,0.35)" : "1px solid rgba(184,134,11,0.2)",
+          borderRadius:20, padding:"2px 10px", textTransform:"uppercase"}}>
+          {label}
+        </div>
+      )}
+      <div style={{position:"relative", cursor: canInteract && hoverColor ? "crosshair" : "default"}}
+        onClick={canInteract ? handleClick : undefined}
+        onMouseMove={canInteract ? handleMouseMove : undefined}
+        onMouseLeave={canInteract ? () => setHoverColor(null) : undefined}>
+        <div style={{height:14, background:"linear-gradient(to bottom,#d4a017,#8b6914)", borderRadius:"50%",
+          marginBottom:-2, position:"relative", zIndex:2, boxShadow:"0 2px 12px rgba(212,160,23,0.4)"}}/>
+        <canvas ref={canvasRef} width={290} height={390} style={{
+          display:"block",
+          borderRadius:"999px 999px 80% 80% / 60px 60px 40px 40px",
+          border: cbType ? "2px solid rgba(255,149,0,0.3)" : "2px solid rgba(212,160,23,0.3)",
+          boxShadow: cbType
+            ? "0 0 50px rgba(255,149,0,0.2), 0 0 100px rgba(255,149,0,0.08)"
+            : `0 0 60px rgba(${r},${g},${b},0.3), 0 0 120px rgba(${r},${g},${b},0.12)`,
+        }}/>
+        <div style={{height:14, background:"linear-gradient(to top,#d4a017,#8b6914)", borderRadius:"50%",
+          marginTop:-2, position:"relative", zIndex:2, boxShadow:"0 -2px 12px rgba(212,160,23,0.4)"}}/>
+        {hoverColor && canInteract && (
+          <div style={{position:"absolute",bottom:28,left:"50%",transform:"translateX(-50%)",
+            background:"rgba(10,7,2,0.92)",border:"1px solid rgba(212,160,23,0.4)",borderRadius:8,
+            padding:"5px 10px",display:"flex",alignItems:"center",gap:7,
+            pointerEvents:"none",whiteSpace:"nowrap",zIndex:10}}>
+            <div style={{width:14,height:14,borderRadius:3,background:hoverColor}}/>
+            <span style={{fontFamily:"'Courier Prime',monospace",fontSize:10,color:"#d4a017"}}>{hoverColor}</span>
+            <span style={{fontFamily:"'Courier Prime',monospace",fontSize:8,color:"rgba(184,134,11,0.5)"}}>click to pick</span>
+          </div>
+        )}
+        {ripple && (
+          <div key={ripple.key} style={{position:"absolute",left:ripple.x,top:ripple.y,
+            width:36,height:36,marginLeft:-18,marginTop:-18,borderRadius:"50%",
+            border:"2px solid #d4a017",pointerEvents:"none",
+            animation:"rippleOut 0.6s ease-out forwards",zIndex:11}}/>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// VERTICAL FADER
+function VerticalFader({label,value,onChange,color,accentColor}) {
+  const trackRef = useRef(null), dragging = useRef(false);
+  const getVal = useCallback((clientY) => {
+    const rect = trackRef.current.getBoundingClientRect();
+    return Math.round(Math.max(0,Math.min(1,1-(clientY-rect.top)/rect.height))*255);
+  },[]);
+  const onMove = useCallback((e) => { if(dragging.current) onChange(getVal(e.clientY)); },[getVal,onChange]);
+  const onUp   = useCallback(() => { dragging.current=false; window.removeEventListener("mousemove",onMove); window.removeEventListener("mouseup",onUp); },[onMove]);
+  const onDown = (e) => { dragging.current=true; onChange(getVal(e.clientY)); window.addEventListener("mousemove",onMove); window.addEventListener("mouseup",onUp); };
+  const pct = (value/255)*100;
+  return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:8,userSelect:"none"}}>
+      <div style={{fontFamily:"'Courier Prime',monospace",fontSize:11,color:"#b8860b",letterSpacing:3,textTransform:"uppercase"}}>{label}</div>
+      <div ref={trackRef} onMouseDown={onDown} style={{width:28,height:160,
+        background:"linear-gradient(to top,rgba(0,0,0,0.6),rgba(50,30,10,0.4))",
+        borderRadius:14,border:"1px solid rgba(184,134,11,0.3)",position:"relative",
+        cursor:"ns-resize",boxShadow:"inset 0 2px 8px rgba(0,0,0,0.5)"}}>
+        <div style={{position:"absolute",bottom:0,left:0,right:0,height:`${pct}%`,
+          background:`linear-gradient(to top,${color}cc,${color}44)`,
+          borderRadius:14,boxShadow:`0 0 12px ${color}88`}}/>
+        <div style={{position:"absolute",left:"50%",bottom:`calc(${pct}% - 10px)`,transform:"translateX(-50%)",
+          width:24,height:20,background:"linear-gradient(135deg,#d4a017,#8b6914)",borderRadius:4,
+          border:`1px solid ${accentColor||"#d4a017"}`,
+          boxShadow:`0 2px 8px rgba(0,0,0,0.5),0 0 6px ${color}66`,cursor:"ns-resize"}}/>
+      </div>
+      <div style={{fontFamily:"'Courier Prime',monospace",fontSize:13,color:accentColor||"#f5e6c8",minWidth:36,textAlign:"center"}}>{value}</div>
+    </div>
+  );
+}
+
+// PALETTE SWATCH
+function PaletteSwatch({hex, adjustedHex, wasAdjusted, cbActive, cbType, bgHex}) {
+  const [copied, setCopied] = useState(false);
+  const displayHex = adjustedHex || hex;
+  let {r,g,b} = hexToRgb(displayHex);
+  if(cbActive && cbType) { const s=cbSimColor(r,g,b,cbType); r=s.r; g=s.g; b=s.b; }
+  const shownHex = rgbToHex(r,g,b);
+  const lum = wcagLum(r,g,b);
+  const textColor = lum > 0.35 ? "#1a1208" : "#f5e6c8";
+  const bg = bgHex ? hexToRgb(bgHex) : (lum > 0.35 ? {r:26,g:18,b:8} : {r:245,g:230,b:200});
+  const cr = contrastRatio(r,g,b,bg.r,bg.g,bg.b);
+  const aa = cr >= 4.5, aaa = cr >= 7;
+  return (
+    <div onClick={() => { navigator.clipboard.writeText(displayHex); setCopied(true); setTimeout(()=>setCopied(false),1400); }}
+      style={{flex:1,minWidth:90,height:130,background:`rgb(${r},${g},${b})`,borderRadius:12,
+        display:"flex",flexDirection:"column",justifyContent:"flex-end",
+        padding:"10px 8px 8px",cursor:"pointer",position:"relative",
+        border:"1px solid rgba(184,134,11,0.2)",transition:"transform 0.15s,box-shadow 0.15s",
+        boxShadow:`0 4px 20px rgba(${r},${g},${b},0.3)`}}
+      onMouseEnter={e => { e.currentTarget.style.transform="translateY(-5px)"; e.currentTarget.style.boxShadow=`0 14px 32px rgba(${r},${g},${b},0.55)`; }}
+      onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.boxShadow=`0 4px 20px rgba(${r},${g},${b},0.3)`; }}>
+      {wasAdjusted && <div style={{position:"absolute",top:6,right:6,background:"rgba(212,160,23,0.9)",color:"#1a1208",fontSize:7,padding:"2px 5px",borderRadius:3,fontFamily:"'Courier Prime',monospace"}}>ADJ</div>}
+      {copied && <div style={{position:"absolute",top:8,left:"50%",transform:"translateX(-50%)",background:"rgba(0,0,0,0.75)",color:"#d4a017",fontSize:10,padding:"2px 8px",borderRadius:20,fontFamily:"'Courier Prime',monospace",whiteSpace:"nowrap"}}>COPIED!</div>}
+      <div style={{display:"flex",gap:3,marginBottom:4}}>
+        <span style={{fontSize:8,padding:"1px 4px",borderRadius:3,background:aa?"rgba(60,180,60,0.75)":"rgba(200,60,60,0.65)",color:"#fff",fontFamily:"'Courier Prime',monospace"}}>AA{aa?"✓":"✗"}</span>
+        <span style={{fontSize:8,padding:"1px 4px",borderRadius:3,background:aaa?"rgba(60,180,60,0.75)":"rgba(200,60,60,0.65)",color:"#fff",fontFamily:"'Courier Prime',monospace"}}>AAA{aaa?"✓":"✗"}</span>
+        <span style={{fontSize:8,padding:"1px 4px",borderRadius:3,background:"rgba(0,0,0,0.4)",color:"#fff",fontFamily:"'Courier Prime',monospace"}}>{cr.toFixed(1)}</span>
+      </div>
+      <div style={{fontFamily:"'Courier Prime',monospace",fontSize:11,color:textColor,letterSpacing:1,fontWeight:700}}>{shownHex}</div>
+    </div>
+  );
+}
+
+// CONTRAST CHECKER
+function ContrastChecker() {
+  const [cA,setCA] = useState("#D4A017"), [cB,setCB] = useState("#1A1208");
+  const [hA,setHA] = useState("#D4A017"), [hB,setHB] = useState("#1A1208");
+  const upA = (v) => { setHA(v); if(/^#[0-9a-fA-F]{6}$/.test(v)) setCA(v.toUpperCase()); };
+  const upB = (v) => { setHB(v); if(/^#[0-9a-fA-F]{6}$/.test(v)) setCB(v.toUpperCase()); };
+  const rA=hexToRgb(cA), rB=hexToRgb(cB);
+  const cr=contrastRatio(rA.r,rA.g,rA.b,rB.r,rB.g,rB.b);
+  const aa=cr>=4.5, aaa=cr>=7, aaL=cr>=3;
+  return (
+    <div style={{background:"rgba(10,7,2,0.7)",border:"1px solid rgba(184,134,11,0.2)",borderRadius:14,padding:"24px 28px"}}>
+      <div style={{display:"flex",gap:20,flexWrap:"wrap",marginBottom:24}}>
+        {[[cA,hA,upA,(v)=>{setCA(v);setHA(v)},"Color A"],[cB,hB,upB,(v)=>{setCB(v);setHB(v)},"Color B"]].map(([color,hex,onInp,onPick,lbl],i) => {
+          const {r,g,b} = hexToRgb(color);
+          return (
+            <div key={i} style={{display:"flex",flexDirection:"column",gap:8}}>
+              <span style={{fontFamily:"'Courier Prime',monospace",fontSize:10,color:"#b8860b",letterSpacing:3}}>{lbl}</span>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:52,height:52,borderRadius:8,background:color,border:"1px solid rgba(184,134,11,0.3)",boxShadow:`0 0 20px rgba(${r},${g},${b},0.4)`}}/>
+                <div>
+                  <input value={hex} onChange={e=>onInp(e.target.value)} style={{display:"block",background:"rgba(0,0,0,0.5)",border:"1px solid rgba(184,134,11,0.3)",borderRadius:6,color:"#f5e6c8",fontFamily:"'Courier Prime',monospace",fontSize:13,padding:"4px 10px",width:100,marginBottom:4}}/>
+                  <input type="color" value={color} onChange={e=>onPick(e.target.value.toUpperCase())} style={{width:100,height:24,borderRadius:4,border:"1px solid rgba(184,134,11,0.2)",cursor:"pointer",padding:0}}/>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{borderRadius:10,overflow:"hidden",marginBottom:20,border:"1px solid rgba(184,134,11,0.15)"}}>
+        <div style={{background:cB,color:cA,padding:"16px 20px"}}>
+          <div style={{fontFamily:"'Courier Prime',monospace",fontSize:18,fontWeight:700,marginBottom:4}}>Sample Text</div>
+          <div style={{fontFamily:"'Courier Prime',monospace",fontSize:13}}>The quick brown fox jumps over the lazy dog.</div>
+        </div>
+        <div style={{background:cA,color:cB,padding:"10px 20px"}}>
+          <div style={{fontFamily:"'Courier Prime',monospace",fontSize:13}}>Inverted combination</div>
+        </div>
+      </div>
+      <div style={{display:"flex",alignItems:"center",gap:20,flexWrap:"wrap"}}>
+        <div style={{textAlign:"center"}}>
+          <div style={{fontFamily:"'Courier Prime',monospace",fontSize:40,fontWeight:700,lineHeight:1,color:aaa?"#7dff7d":aa?"#d4a017":"#ff6b6b"}}>{cr.toFixed(2)}</div>
+          <div style={{fontFamily:"'Courier Prime',monospace",fontSize:10,color:"rgba(184,134,11,0.5)",letterSpacing:2}}>CONTRAST RATIO</div>
+        </div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          {[{l:"AA Normal",d:"≥4.5:1",p:aa},{l:"AA Large",d:"≥3:1",p:aaL},{l:"AAA Normal",d:"≥7:1",p:aaa},{l:"UI Elements",d:"≥3:1",p:aaL}].map(({l,d,p}) => (
+            <div key={l} style={{background:p?"rgba(60,180,60,0.1)":"rgba(200,60,60,0.1)",border:`1px solid ${p?"rgba(60,180,60,0.4)":"rgba(200,60,60,0.3)"}`,borderRadius:8,padding:"8px 12px",textAlign:"center",minWidth:90}}>
+              <div style={{fontSize:16,marginBottom:2}}>{p?"✓":"✗"}</div>
+              <div style={{fontFamily:"'Courier Prime',monospace",fontSize:10,color:p?"#7dff7d":"#ff6b6b",letterSpacing:1}}>{l}</div>
+              <div style={{fontFamily:"'Courier Prime',monospace",fontSize:9,color:"rgba(245,230,200,0.3)",marginTop:2}}>{d}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// CB SIMULATOR PANEL
+function CBSimPanel({palette,rgb}) {
+  const [at, setAt] = useState("protanopia");
+  const TYPES = ["protanopia","deuteranopia","tritanopia"];
+  const LBLS  = {protanopia:"Protanopia (Red-blind)",deuteranopia:"Deuteranopia (Green-blind)",tritanopia:"Tritanopia (Blue-blind)"};
+  return (
+    <div style={{background:"rgba(10,7,2,0.7)",border:"1px solid rgba(184,134,11,0.2)",borderRadius:14,padding:"24px 28px"}}>
+      <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
+        {TYPES.map(t => <button key={t} onClick={() => setAt(t)} style={{fontFamily:"'Courier Prime',monospace",fontSize:10,letterSpacing:2,textTransform:"uppercase",padding:"6px 14px",borderRadius:20,border:at===t?"1px solid #ff9500":"1px solid rgba(184,134,11,0.25)",background:at===t?"rgba(255,149,0,0.12)":"rgba(0,0,0,0.3)",color:at===t?"#ff9500":"rgba(245,230,200,0.5)",cursor:"pointer"}}>{t}</button>)}
+      </div>
+      <div style={{fontFamily:"'Courier Prime',monospace",fontSize:11,color:"rgba(184,134,11,0.5)",marginBottom:16}}>{LBLS[at]}</div>
+      <div style={{marginBottom:20}}>
+        <div style={{fontFamily:"'Courier Prime',monospace",fontSize:9,color:"rgba(184,134,11,0.4)",letterSpacing:3,marginBottom:10,textTransform:"uppercase"}}>Current Mix Color</div>
+        <div style={{display:"flex",gap:12,alignItems:"center"}}>
+          <div style={{textAlign:"center"}}>
+            <div style={{width:60,height:60,borderRadius:10,background:`rgb(${rgb.r},${rgb.g},${rgb.b})`,border:"1px solid rgba(184,134,11,0.2)",marginBottom:4}}/>
+            <div style={{fontFamily:"'Courier Prime',monospace",fontSize:8,color:"rgba(245,230,200,0.4)"}}>Normal</div>
+          </div>
+          <div style={{fontFamily:"'Courier Prime',monospace",fontSize:18,color:"rgba(184,134,11,0.3)"}}>→</div>
+          {(() => { const s=cbSimColor(rgb.r,rgb.g,rgb.b,at); return (
+            <div style={{textAlign:"center"}}>
+              <div style={{width:60,height:60,borderRadius:10,background:`rgb(${s.r},${s.g},${s.b})`,border:"1px solid rgba(184,134,11,0.2)",marginBottom:4}}/>
+              <div style={{fontFamily:"'Courier Prime',monospace",fontSize:8,color:"rgba(245,230,200,0.4)"}}>{at}</div>
+              <div style={{fontFamily:"'Courier Prime',monospace",fontSize:8,color:"rgba(245,230,200,0.3)"}}>{rgbToHex(s.r,s.g,s.b)}</div>
+            </div>
+          ); })()}
+        </div>
+      </div>
+      <div>
+        <div style={{fontFamily:"'Courier Prime',monospace",fontSize:9,color:"rgba(184,134,11,0.4)",letterSpacing:3,marginBottom:10,textTransform:"uppercase"}}>Palette vs {at}</div>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {palette.map((hex,i) => { const {r,g,b}=hexToRgb(hex), s=cbSimColor(r,g,b,at); return (
+            <div key={i} style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{width:36,height:28,borderRadius:5,background:hex,flexShrink:0}}/>
+              <div style={{fontFamily:"'Courier Prime',monospace",fontSize:9,color:"rgba(245,230,200,0.4)",width:70}}>{hex}</div>
+              <div style={{fontFamily:"'Courier Prime',monospace",fontSize:10,color:"rgba(184,134,11,0.25)"}}>→</div>
+              <div style={{width:36,height:28,borderRadius:5,background:rgbToHex(s.r,s.g,s.b),flexShrink:0}}/>
+              <div style={{fontFamily:"'Courier Prime',monospace",fontSize:9,color:"rgba(245,230,200,0.4)",width:70}}>{rgbToHex(s.r,s.g,s.b)}</div>
+              {rgbToHex(s.r,s.g,s.b)!==hex && <span style={{fontSize:8,padding:"1px 5px",borderRadius:3,background:"rgba(255,149,0,0.2)",color:"#ff9500",fontFamily:"'Courier Prime',monospace"}}>SHIFT</span>}
+            </div>
+          ); })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ACCESSIBLE PALETTE PANEL
+function AccessPanel({palette, onApply}) {
+  const [bgHex, setBgHex]     = useState("#1A1208");
+  const [minR,  setMinR]      = useState(4.5);
+  const [results, setResults] = useState(null);
+  const run = () => { const adj=palette.map(h=>autoAdjust(h,bgHex,minR)); setResults(adj); onApply(adj.map(a=>a.hex),bgHex); };
+  const reset = () => { setResults(null); onApply(null,null); };
+  const bg = hexToRgb(bgHex);
+  return (
+    <div style={{background:"rgba(10,7,2,0.7)",border:"1px solid rgba(184,134,11,0.2)",borderRadius:14,padding:"24px 28px"}}>
+      <div style={{display:"flex",gap:16,alignItems:"flex-end",marginBottom:20,flexWrap:"wrap"}}>
+        <div>
+          <div style={{fontFamily:"'Courier Prime',monospace",fontSize:9,color:"#b8860b",letterSpacing:3,marginBottom:6,textTransform:"uppercase"}}>Background</div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <div style={{width:32,height:32,borderRadius:6,background:bgHex,border:"1px solid rgba(184,134,11,0.3)"}}/>
+            <input value={bgHex} onChange={e=>setBgHex(e.target.value.toUpperCase())} style={{background:"rgba(0,0,0,0.5)",border:"1px solid rgba(184,134,11,0.3)",borderRadius:6,color:"#f5e6c8",fontFamily:"'Courier Prime',monospace",fontSize:13,padding:"4px 10px",width:100}}/>
+            <input type="color" value={bgHex} onChange={e=>setBgHex(e.target.value.toUpperCase())} style={{width:32,height:32,borderRadius:6,border:"1px solid rgba(184,134,11,0.2)",cursor:"pointer",padding:0}}/>
+          </div>
+        </div>
+        <div>
+          <div style={{fontFamily:"'Courier Prime',monospace",fontSize:9,color:"#b8860b",letterSpacing:3,marginBottom:6,textTransform:"uppercase"}}>Min Ratio</div>
+          <div style={{display:"flex",gap:6}}>
+            {[[3,"AA Large"],[4.5,"AA"],[7,"AAA"]].map(([v,l]) => <button key={v} onClick={()=>setMinR(v)} style={{fontFamily:"'Courier Prime',monospace",fontSize:10,padding:"5px 10px",borderRadius:6,border:minR===v?"1px solid #d4a017":"1px solid rgba(184,134,11,0.25)",background:minR===v?"rgba(212,160,23,0.15)":"rgba(0,0,0,0.3)",color:minR===v?"#d4a017":"rgba(245,230,200,0.5)",cursor:"pointer"}}>{l} ({v}:1)</button>)}
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={run} style={{fontFamily:"'Courier Prime',monospace",fontSize:10,letterSpacing:2,padding:"8px 18px",borderRadius:8,border:"1px solid #d4a017",background:"rgba(212,160,23,0.15)",color:"#d4a017",cursor:"pointer",textTransform:"uppercase"}}>Auto-Adjust</button>
+          {results && <button onClick={reset} style={{fontFamily:"'Courier Prime',monospace",fontSize:10,letterSpacing:2,padding:"8px 18px",borderRadius:8,border:"1px solid rgba(184,134,11,0.3)",background:"rgba(0,0,0,0.3)",color:"rgba(245,230,200,0.5)",cursor:"pointer",textTransform:"uppercase"}}>Reset</button>}
+        </div>
+      </div>
+      {results && (
+        <div>
+          <div style={{fontFamily:"'Courier Prime',monospace",fontSize:9,color:"rgba(184,134,11,0.5)",letterSpacing:3,marginBottom:12,textTransform:"uppercase"}}>Results vs {bgHex}</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {results.map((res,i) => { const {r,g,b}=hexToRgb(res.hex), cr=contrastRatio(r,g,b,bg.r,bg.g,bg.b); return (
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10,background:"rgba(0,0,0,0.3)",borderRadius:8,padding:"8px 12px"}}>
+                {res.adjusted && <><div style={{width:28,height:28,borderRadius:5,background:res.originalHex,flexShrink:0,border:"1px solid rgba(255,255,255,0.1)"}}/><span style={{fontFamily:"'Courier Prime',monospace",fontSize:10,color:"rgba(184,134,11,0.4)"}}>→</span></>}
+                <div style={{width:28,height:28,borderRadius:5,background:res.hex,flexShrink:0,boxShadow:`0 0 10px rgba(${r},${g},${b},0.3)`}}/>
+                <span style={{fontFamily:"'Courier Prime',monospace",fontSize:11,color:"#f5e6c8",width:70}}>{res.hex}</span>
+                <span style={{fontFamily:"'Courier Prime',monospace",fontSize:10,color:"rgba(184,134,11,0.6)"}}>{cr.toFixed(2)}:1</span>
+                {res.adjusted ? <span style={{fontSize:8,padding:"2px 6px",borderRadius:3,background:"rgba(212,160,23,0.2)",color:"#d4a017",fontFamily:"'Courier Prime',monospace"}}>ADJUSTED</span>
+                              : <span style={{fontSize:8,padding:"2px 6px",borderRadius:3,background:"rgba(60,180,60,0.15)",color:"#7dff7d",fontFamily:"'Courier Prime',monospace"}}>PASSED</span>}
+              </div>
+            ); })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// HELPERS
+function SectionLabel({children}) {
+  return (
+    <div style={{marginBottom:20,display:"flex",alignItems:"center",gap:14}}>
+      <div style={{height:1,flex:"0 0 20px",background:"rgba(184,134,11,0.4)"}}/>
+      <span style={{fontFamily:"'Courier Prime',monospace",fontSize:10,color:"#b8860b",letterSpacing:4,textTransform:"uppercase",whiteSpace:"nowrap"}}>{children}</span>
+      <div style={{height:1,flex:1,background:"linear-gradient(to right,rgba(184,134,11,0.4),transparent)"}}/>
+    </div>
+  );
+}
+function HexInput({onCommit, currentHex}) {
+  const [val,setVal] = useState(currentHex);
+  useEffect(() => setVal(currentHex), [currentHex]);
+  return (
+    <input value={val} onChange={e=>setVal(e.target.value)}
+      onBlur={() => { if(/^#[0-9a-fA-F]{6}$/.test(val)) onCommit(val.toUpperCase()); else setVal(currentHex); }}
+      onKeyDown={e => { if(e.key==="Enter" && /^#[0-9a-fA-F]{6}$/.test(val)) onCommit(val.toUpperCase()); }}
+      maxLength={7} placeholder="#RRGGBB"
+      style={{background:"rgba(0,0,0,0.4)",border:"1px solid rgba(184,134,11,0.3)",borderRadius:6,color:"#f5e6c8",fontFamily:"'Courier Prime',monospace",fontSize:13,padding:"4px 10px",width:100}}/>
+  );
+}
+function CopyBtn({text,label}) {
+  const [copied,setCopied] = useState(false);
+  return (
+    <button onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(()=>setCopied(false),1400); }}
+      style={{fontFamily:"'Courier Prime',monospace",fontSize:9,letterSpacing:2,padding:"4px 12px",borderRadius:20,border:"1px solid rgba(184,134,11,0.35)",background:"rgba(0,0,0,0.4)",color:copied?"#d4a017":"rgba(245,230,200,0.5)",cursor:"pointer",textTransform:"uppercase"}}>
+      {copied ? "✓ Copied!" : label}
+    </button>
+  );
+}
+
+// MAIN APP
+const HARMONY_TYPES = ["complementary","analogous","triadic","split-complementary","tetradic"];
+const CB_TYPES  = ["protanopia","deuteranopia","tritanopia"];
+const CB_LABELS = {protanopia:"Protanopia", deuteranopia:"Deuteranopia", tritanopia:"Tritanopia"};
+
+function App() {
+  const [rgb,          setRgb]          = useState({r:186,g:94,b:47});
+  const [harmonyType,  setHarmonyType]  = useState("complementary");
+  const [palette,      setPalette]      = useState([]);
+  const [linked,       setLinked]       = useState(true);
+  const [baseHex,      setBaseHex]      = useState(rgbToHex(186,94,47));
+  const [randomSpin,   setRandomSpin]   = useState(false);
+  const [cbActive,     setCbActive]     = useState(false);
+  const [cbType,       setCbType]       = useState("protanopia");
+  const [adjPalette,   setAdjPalette]   = useState(null);
+  const [adjBgHex,     setAdjBgHex]     = useState(null);
+  const [activeTool,   setActiveTool]   = useState(null);
+
+  const palBase = linked ? rgb : hexToRgb(baseHex);
+  useEffect(() => {
+    setPalette(generateHarmony(palBase.r,palBase.g,palBase.b,harmonyType));
+    setAdjPalette(null); setAdjBgHex(null);
+  }, [palBase.r,palBase.g,palBase.b,harmonyType]);
+
+  const randomize = () => {
+    setRandomSpin(true); setTimeout(()=>setRandomSpin(false),600);
+    const nr=Math.round(Math.random()*255), ng=Math.round(Math.random()*255), nb=Math.round(Math.random()*255);
+    if(linked) setRgb({r:nr,g:ng,b:nb}); else setBaseHex(rgbToHex(nr,ng,nb));
+  };
+
+  const hexDisplay  = rgbToHex(rgb.r,rgb.g,rgb.b);
+  const activePal   = adjPalette || palette;
+
+  return (
+    <div style={{minHeight:"100vh",background:"radial-gradient(ellipse at 40% 30%,#2a1a08 0%,#130f04 50%,#0c0804 100%)",color:"#f5e6c8",position:"relative",overflow:"hidden"}}>
+      {/* grain */}
+      <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:100,
+        backgroundImage:`url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E")`,opacity:0.6}}/>
+
+      <header style={{padding:"28px 40px 20px",display:"flex",alignItems:"baseline",gap:16,borderBottom:"1px solid rgba(184,134,11,0.15)"}}>
+        <h1 style={{fontFamily:"'Palatino Linotype',Palatino,serif",fontSize:32,fontWeight:400,letterSpacing:10,textTransform:"uppercase",color:"#d4a017",margin:0,textShadow:"0 0 30px rgba(212,160,23,0.4)"}}>Chromalava</h1>
+        <span style={{fontFamily:"'Courier Prime',monospace",fontSize:10,color:"rgba(184,134,11,0.5)",letterSpacing:4,textTransform:"uppercase"}}>RGB Color Studio</span>
+      </header>
+
+      <div style={{padding:"32px 40px",maxWidth:1300,margin:"0 auto"}}>
+
+        {/* ── I. EXPLORER ── */}
+        <section style={{marginBottom:52}}>
+          <SectionLabel>I. Animated Color Explorer</SectionLabel>
+
+          {/* CB selector */}
+          <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:24,flexWrap:"wrap"}}>
+            <span style={{fontFamily:"'Courier Prime',monospace",fontSize:9,color:"rgba(184,134,11,0.5)",letterSpacing:3,textTransform:"uppercase",flexShrink:0}}>Color Blindness Sim:</span>
+            <button onClick={() => setCbActive(false)}
+              style={{fontFamily:"'Courier Prime',monospace",fontSize:9,letterSpacing:2,padding:"4px 12px",borderRadius:20,cursor:"pointer",textTransform:"uppercase",
+                border: !cbActive ? "1px solid #d4a017" : "1px solid rgba(184,134,11,0.25)",
+                background: !cbActive ? "rgba(212,160,23,0.15)" : "rgba(0,0,0,0.35)",
+                color: !cbActive ? "#d4a017" : "rgba(245,230,200,0.4)"}}>
+              Off
+            </button>
+            {CB_TYPES.map(t => (
+              <button key={t} onClick={() => { setCbActive(true); setCbType(t); }}
+                style={{fontFamily:"'Courier Prime',monospace",fontSize:9,letterSpacing:2,padding:"4px 12px",borderRadius:20,cursor:"pointer",textTransform:"uppercase",
+                  border: cbActive && cbType===t ? "1px solid #ff9500" : "1px solid rgba(184,134,11,0.25)",
+                  background: cbActive && cbType===t ? "rgba(255,149,0,0.15)" : "rgba(0,0,0,0.35)",
+                  color: cbActive && cbType===t ? "#ff9500" : "rgba(245,230,200,0.4)"}}>
+                {CB_LABELS[t]}
+              </button>
+            ))}
+          </div>
+
+          <div style={{display:"flex",gap:32,alignItems:"flex-start",flexWrap:"wrap"}}>
+
+            {/* VESSELS */}
+            <div style={{display:"flex",gap:20,alignItems:"flex-start",flexWrap:"wrap"}}>
+              {cbActive ? (
+                <>
+                  <BlobCanvas rgb={rgb} cbType={cbType}  label={`${CB_LABELS[cbType]} view`} onColorPick={null}/>
+                  <BlobCanvas rgb={rgb} cbType={null}    label="Original" onColorPick={(r,g,b) => setRgb({r,g,b})}/>
+                </>
+              ) : (
+                <BlobCanvas rgb={rgb} cbType={null} label={null} onColorPick={(r,g,b) => setRgb({r,g,b})}/>
+              )}
+            </div>
+
+            {/* CONTROLS */}
+            <div style={{flex:1,minWidth:240}}>
+              <div style={{display:"flex",gap:28,marginBottom:32}}>
+                <VerticalFader label="R" value={rgb.r} onChange={v=>setRgb(p=>({...p,r:v}))} color="#dc3c3c" accentColor="#ff6b6b"/>
+                <VerticalFader label="G" value={rgb.g} onChange={v=>setRgb(p=>({...p,g:v}))} color="#3cc83c" accentColor="#7dff7d"/>
+                <VerticalFader label="B" value={rgb.b} onChange={v=>setRgb(p=>({...p,b:v}))} color="#3c64f0" accentColor="#7da8ff"/>
+              </div>
+              <div style={{background:"rgba(0,0,0,0.6)",border:"1px solid rgba(184,134,11,0.3)",borderRadius:10,padding:"16px 20px",marginBottom:14,boxShadow:`0 0 30px rgba(${rgb.r},${rgb.g},${rgb.b},0.15)`}}>
+                <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:12}}>
+                  <div style={{width:52,height:52,borderRadius:8,background:hexDisplay,boxShadow:`0 0 20px rgba(${rgb.r},${rgb.g},${rgb.b},0.6)`,border:"1px solid rgba(184,134,11,0.3)",flexShrink:0}}/>
+                  <div>
+                    <div style={{fontFamily:"'Courier Prime',monospace",fontSize:22,color:"#d4a017",letterSpacing:3,fontWeight:700}}>{hexDisplay}</div>
+                    <div style={{fontFamily:"'Courier Prime',monospace",fontSize:12,color:"rgba(245,230,200,0.6)",marginTop:2}}>rgb({rgb.r}, {rgb.g}, {rgb.b})</div>
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  <CopyBtn text={hexDisplay} label="Copy HEX"/>
+                  <CopyBtn text={`rgb(${rgb.r},${rgb.g},${rgb.b})`} label="Copy RGB"/>
+                </div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+                <span style={{fontFamily:"'Courier Prime',monospace",fontSize:10,color:"#b8860b",letterSpacing:2}}>SET HEX</span>
+                <HexInput onCommit={h => { const c=hexToRgb(h); setRgb(c); }} currentHex={hexDisplay}/>
+              </div>
+              <div style={{background:"rgba(0,0,0,0.4)",border:"1px solid rgba(184,134,11,0.12)",borderRadius:8,padding:"10px 14px"}}>
+                <div style={{fontFamily:"'Courier Prime',monospace",fontSize:9,color:"rgba(184,134,11,0.45)",letterSpacing:3,marginBottom:8,textTransform:"uppercase"}}>Additive Light Mixing</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {[["R","G","#FFFF00","Yellow"],["R","B","#FF00FF","Magenta"],["G","B","#00FFFF","Cyan"],["R+G","B","#FFFFFF","White"]].map(([a,bv,col,lbl]) => (
+                    <div key={lbl} style={{display:"flex",alignItems:"center",gap:4,background:"rgba(0,0,0,0.3)",borderRadius:5,padding:"3px 7px"}}>
+                      <span style={{fontFamily:"'Courier Prime',monospace",fontSize:9,color:"rgba(245,230,200,0.4)"}}>{a}+{bv}=</span>
+                      <div style={{width:10,height:10,borderRadius:2,background:col,boxShadow:`0 0 5px ${col}88`}}/>
+                      <span style={{fontFamily:"'Courier Prime',monospace",fontSize:9,color:"rgba(245,230,200,0.4)"}}>{lbl}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ── II. PALETTE ── */}
+        <section style={{marginBottom:52}}>
+          <SectionLabel>II. Palette Generator</SectionLabel>
+          <div style={{display:"flex",gap:10,alignItems:"center",marginBottom:20,flexWrap:"wrap"}}>
+            {HARMONY_TYPES.map(h => (
+              <button key={h} onClick={()=>setHarmonyType(h)}
+                style={{fontFamily:"'Courier Prime',monospace",fontSize:10,letterSpacing:2,textTransform:"uppercase",padding:"6px 14px",borderRadius:20,cursor:"pointer",transition:"all 0.2s",
+                  border: harmonyType===h ? "1px solid #d4a017" : "1px solid rgba(184,134,11,0.3)",
+                  background: harmonyType===h ? "rgba(212,160,23,0.15)" : "rgba(0,0,0,0.4)",
+                  color: harmonyType===h ? "#d4a017" : "rgba(245,230,200,0.5)",
+                  boxShadow: harmonyType===h ? "0 0 12px rgba(212,160,23,0.2)" : "none"}}>
+                {h}
+              </button>
+            ))}
+            <button onClick={randomize} style={{fontFamily:"'Courier Prime',monospace",fontSize:10,letterSpacing:2,padding:"6px 14px",borderRadius:20,border:"1px solid rgba(184,134,11,0.3)",background:"rgba(0,0,0,0.4)",color:"rgba(245,230,200,0.5)",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5}}>
+              <span style={{display:"inline-block",animation:randomSpin?"spin 0.5s ease":"none",fontSize:14}}>⟳</span>RANDOM
+            </button>
+            <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:8}}>
+              <span style={{fontFamily:"'Courier Prime',monospace",fontSize:9,color:"rgba(184,134,11,0.5)",letterSpacing:2}}>SYNC EXPLORER</span>
+              <button onClick={()=>setLinked(l=>!l)} style={{width:36,height:20,borderRadius:10,border:"1px solid rgba(184,134,11,0.4)",background:linked?"rgba(212,160,23,0.3)":"rgba(0,0,0,0.4)",cursor:"pointer",position:"relative",transition:"background 0.2s"}}>
+                <div style={{position:"absolute",top:2,left:linked?18:2,width:14,height:14,borderRadius:"50%",background:linked?"#d4a017":"rgba(184,134,11,0.4)",transition:"left 0.2s"}}/>
+              </button>
+            </div>
+          </div>
+          {!linked && (
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+              <span style={{fontFamily:"'Courier Prime',monospace",fontSize:10,color:"#b8860b",letterSpacing:2}}>BASE</span>
+              <HexInput onCommit={setBaseHex} currentHex={baseHex}/>
+              <div style={{width:28,height:28,borderRadius:5,background:baseHex,border:"1px solid rgba(184,134,11,0.3)"}}/>
+            </div>
+          )}
+          <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
+            {activePal.map((hex,i) => (
+              <PaletteSwatch key={i} hex={palette[i]}
+                adjustedHex={adjPalette?adjPalette[i]:null}
+                wasAdjusted={!!(adjPalette&&adjPalette[i]!==palette[i])}
+                cbActive={cbActive} cbType={cbActive?cbType:null}
+                bgHex={adjBgHex}/>
+            ))}
+          </div>
+          {adjPalette && <div style={{fontFamily:"'Courier Prime',monospace",fontSize:9,color:"rgba(212,160,23,0.5)",marginTop:10,letterSpacing:2}}>⟳ ACCESSIBLE MODE ACTIVE — adjusted for contrast against {adjBgHex}</div>}
+        </section>
+
+        {/* ── III. TOOLS ── */}
+        <section style={{marginBottom:52}}>
+          <SectionLabel>III. Accessibility &amp; Simulation Tools</SectionLabel>
+          <div style={{display:"flex",gap:8,marginBottom:20,flexWrap:"wrap"}}>
+            {[["contrast","◈ Contrast Checker"],["cb","◉ CB Simulator"],["access","⬡ Accessible Palette"]].map(([key,lbl]) => (
+              <button key={key} onClick={() => setActiveTool(activeTool===key?null:key)}
+                style={{fontFamily:"'Courier Prime',monospace",fontSize:10,letterSpacing:2,textTransform:"uppercase",padding:"8px 16px",borderRadius:8,cursor:"pointer",transition:"all 0.2s",
+                  border: activeTool===key ? "1px solid #d4a017" : "1px solid rgba(184,134,11,0.25)",
+                  background: activeTool===key ? "rgba(212,160,23,0.12)" : "rgba(0,0,0,0.35)",
+                  color: activeTool===key ? "#d4a017" : "rgba(245,230,200,0.45)"}}>
+                {lbl}
+              </button>
+            ))}
+          </div>
+          {activeTool==="contrast" && <ContrastChecker/>}
+          {activeTool==="cb"       && <CBSimPanel palette={activePal} rgb={rgb}/>}
+          {activeTool==="access"   && <AccessPanel palette={palette} onApply={(hexes,bg) => { setAdjPalette(hexes); setAdjBgHex(bg); }}/>}
+        </section>
+
+        <footer style={{borderTop:"1px solid rgba(184,134,11,0.1)",paddingTop:16,fontFamily:"'Courier Prime',monospace",fontSize:10,color:"rgba(184,134,11,0.3)",letterSpacing:3,textAlign:"center"}}>
+          CHROMALAVA · RGB COLOR STUDIO · CLICK SWATCHES TO COPY HEX
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
