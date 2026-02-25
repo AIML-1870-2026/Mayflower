@@ -1,0 +1,1074 @@
+<!--
+================================================================================
+SPEC.MD — Deep Sea Blackjack
+================================================================================
+
+## VISUAL DESIGN
+- Theme: Deep-ocean bioluminescent aesthetic
+- Background: Radial abyss gradient (#020c16 to #0d6e9e) with animated caustic
+  light ripples simulating underwater light refraction
+- Animated scene: rising bubbles, swaying kelp forest, gliding shark, jellyfish,
+  fish parade (3 fish swim across) on wins
+- Currency: Pearls (shown with oyster emoji), iridescent chip tokens
+- Cards: Sea-glass blue-green faces with wave-stripe texture; ocean creature suits
+  (Dolphin, Coral, Clownfish, Squid); deep-navy bioluminescent backs with glowing shell
+- Win particles: Rising iridescent pearl orbs
+- Fonts: Cormorant Garamond (display), Nunito (UI), Cinzel (labels)
+- Responsive: 360px mobile (stacked HUD, hidden shortcuts) through 1920px desktop
+
+## LAYOUT
+- Full-viewport ocean scene, layered z-index 0-3
+- HUD bar (fixed top): Pearls | Wager | Title | Current Count | Shoe
+  - Mobile: title on top row, 4 stats below
+- Dealer area (upper), Message strip (center), Player area (lower)
+- Pearl chip tray (1/5/10/25/100/500) + action buttons
+- Collapsible right panel: Dive Stats, Strategy Hints, Dive Log
+
+## GAME STATES
+1. BETTING    - Chips + Clear enabled; Deal enabled when bet > 0; play btns disabled
+2. PLAYING    - Chips/Clear/Deal disabled; Hit/Stand always on; Double if 2 cards +
+               balance >= cost; Split if pair + not already split + balance >= bet;
+               Hit disabled for split aces
+3. DONE       - Deal becomes "New Dive"; all play buttons disabled
+
+## BLACKJACK RULES
+- 6-deck shoe (312 cards), reshuffled when < 52 remain
+- Dealer stands on soft 17+
+- Blackjack pays 3:2 (floor(bet * 1.5))
+- Push: simultaneous blackjack returns bet
+- Insurance: dealer Ace -> offer half-bet insurance, pays 2:1
+  (insurance payout applied correctly even when dealer has blackjack)
+- Double Down: first 2 cards only; one more card; per-hand wager tracked
+- Split: equal ranks -> two hands at bet/2 each
+  - Aces: exactly 1 card each, auto-stand
+  - Bust on split hand recorded immediately, play continues
+  - splitWagers[] tracks each hand independently (supports doubling)
+- Hi-Lo counting: 2-6=+1, 7-9=0, 10-A=-1 (running count in HUD)
+- Basic strategy hints shown during play
+
+## TESTING SCENARIOS (Required Validation)
+1. Player BJ, dealer no BJ: bet=100 -> pay=150, balance+=250, msg "BLACKJACK!"
+2. Both BJ (push): bet=100 -> balance+=100 returned, msg "PUSH Both Blackjack"
+3. Insurance win (dealer BJ): bet=100, ins=50 -> ins pays 150, main lost -> break even
+4. Double win: bet=50 -> doubleCost=50 -> bet=100 -> win returns 200 -> net +100
+5. Split both win: bet=100 -> splitWagers=[50,50] -> each wins 100 -> net +100
+6. Player bust: balance unchanged after deal deduction, msg "BUST!"
+7. Dealer bust: player wins bet amount, balance += bet*2
+8. Push equal totals: balance += bet returned
+9. Hi-Lo: deal 3,5,K -> count: +1+1-1 = +1
+
+## REFLECTION
+Q: Blackjack for all card combos yielding 21?
+A: total() reduces aces from 11->1 as needed. isBJ() checks length===2 && total===21.
+   All 4-suit x 4-rank (10/J/Q/K) x 4-ace combinations covered = 64 blackjack combos.
+
+Q: Deck complete and shuffled?
+A: buildShoe(): 6 loops x 4 suits x 13 ranks = 312 cards exactly.
+   Fisher-Yates (fyShuf) guarantees uniform random permutation.
+   Live shoe count in HUD; reshuffled when < 52 remain.
+
+## FEATURES
+Core: single-player vs dealer AI, 6-deck shoe, BJ 3:2, push, insurance,
+      double down, split (with doubles), split aces, soft-17 dealer stand
+UI: deal/flip animations, win particles, fish parade, pearl chip sounds,
+    keyboard shortcuts (H/S/D/X/C), stats panel, dive log, strategy hints,
+    Hi-Lo count display, responsive mobile layout, auto-refill at zero
+================================================================================
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Sea Blackjack</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400&family=Nunito:wght@300;400;600;700&family=Cinzel:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --abyss:      #020c16;
+  --deep:       #041e33;
+  --mid:        #083a5e;
+  --surface:    #0d6e9e;
+  --foam:       #a8d8ea;
+  --pearl:      #f0eef8;
+  --pearl-lt:   #ffffff;
+  --pearl-dk:   #c0b8d8;
+  --pearl-glow: rgba(220,210,255,.55);
+  --cyan:       #00e5ff;
+  --teal:       #00bcd4;
+  --seafoam:    #64ffda;
+  --card-shadow:0 6px 28px rgba(0,0,0,.65),0 2px 8px rgba(0,200,255,.12);
+  --r-card:     9px;
+  --ui-bg:      rgba(2,14,26,.78);
+  --ui-bd:      rgba(168,216,234,.22);
+  --text:       #dff0f7;
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Nunito',sans-serif;color:var(--text);user-select:none}
+
+/* Background */
+body{background:radial-gradient(ellipse at 50% -5%,var(--surface) 0%,var(--mid) 28%,var(--deep) 60%,var(--abyss) 100%);position:relative}
+
+/* Caustics */
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:
+    repeating-linear-gradient(52deg,transparent,transparent 48px,rgba(0,229,255,.018) 49px,rgba(0,229,255,.018) 51px),
+    repeating-linear-gradient(-52deg,transparent,transparent 48px,rgba(0,188,212,.014) 49px,rgba(0,188,212,.014) 51px);
+  animation:caustics 9s ease-in-out infinite alternate;
+}
+@keyframes caustics{0%{opacity:.5;transform:scale(1) translateY(0)}100%{opacity:1;transform:scale(1.06) translateY(-8px)}}
+
+/* Oval border */
+body::after{
+  content:'';position:fixed;left:4%;right:4%;top:7%;bottom:4%;
+  border:2px solid rgba(0,229,255,.18);border-radius:50%/28%;
+  box-shadow:inset 0 0 90px rgba(0,0,0,.45),inset 0 -20px 50px rgba(13,110,158,.18),0 0 70px rgba(0,0,0,.5);
+  pointer-events:none;z-index:0;
+}
+
+/* ── Ocean scene layers ── */
+#ocean-layers{position:fixed;inset:0;pointer-events:none;z-index:1;overflow:hidden}
+
+/* Ambient bubbles */
+.bbl{
+  position:absolute;bottom:-30px;border-radius:50%;
+  background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.3),rgba(0,229,255,.07));
+  border:1px solid rgba(255,255,255,.12);
+  animation:riseUp linear infinite;
+}
+@keyframes riseUp{
+  0%{transform:translateY(0) translateX(0);opacity:.55}
+  50%{transform:translateY(-45vh) translateX(8px);opacity:.35}
+  100%{transform:translateY(-115vh) translateX(-6px);opacity:0}
+}
+
+/* ── Kelp forest ── */
+#kelp-row{
+  position:fixed;bottom:0;left:0;right:0;height:160px;
+  pointer-events:none;z-index:2;
+  display:flex;align-items:flex-end;overflow:hidden;
+}
+.kelp{
+  flex-shrink:0;border-radius:6px 6px 0 0;
+  background:linear-gradient(to top,#094a1c,#1a8a3a 40%,#0d6b2a 70%,#18b04a);
+  transform-origin:bottom center;
+  animation:sway ease-in-out infinite alternate;
+}
+@keyframes sway{
+  0%{transform:rotate(-9deg) scaleX(.94)}
+  100%{transform:rotate(9deg) scaleX(1.06)}
+}
+
+/* ── Shark ── */
+#shark{
+  position:fixed;font-size:52px;pointer-events:none;z-index:3;
+  top:16%;opacity:.5;
+  animation:sharkSwim 30s linear infinite;
+  filter:drop-shadow(0 4px 14px rgba(0,0,0,.5));
+}
+@keyframes sharkSwim{
+  0%  {left:-80px;transform:scaleX(1);top:16%}
+  44% {top:22%}
+  49% {left:calc(100vw + 80px);top:22%}
+  50% {left:calc(100vw + 80px);transform:scaleX(-1);top:22%}
+  94% {top:14%}
+  99% {left:-80px;transform:scaleX(-1);top:14%}
+  100%{left:-80px;transform:scaleX(1);top:16%}
+}
+
+/* ── Jellyfish ── */
+.jelly{
+  position:fixed;pointer-events:none;z-index:3;
+  animation:jellyFloat ease-in-out infinite alternate;
+}
+@keyframes jellyFloat{
+  0%{transform:translateY(0) rotate(-6deg)}
+  100%{transform:translateY(-20px) rotate(6deg)}
+}
+
+/* ── HUD ── */
+#hud{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:9px 20px;
+  background:rgba(2,12,22,.9);
+  border-bottom:1px solid var(--ui-bd);
+  backdrop-filter:blur(10px);
+}
+.hud-item{display:flex;flex-direction:column;align-items:center;min-width:88px}
+.hud-lbl{font-family:'Cinzel',serif;font-size:8.5px;letter-spacing:2px;text-transform:uppercase;color:var(--foam);opacity:.7}
+.hud-val{font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:700;color:var(--pearl)}
+.hud-val.g{color:var(--seafoam)}.hud-val.r{color:#ff7070}
+#hud-title{font-family:'Cinzel',serif;font-size:19px;letter-spacing:5px;color:var(--foam);text-shadow:0 0 18px rgba(0,229,255,.55),0 0 36px rgba(0,188,212,.3)}
+#count-disp{font-family:'Cormorant Garamond',serif;font-size:16px;font-weight:700;padding:2px 10px;border-radius:4px;border:1px solid var(--ui-bd);transition:color .3s,border-color .3s}
+#count-disp.pos{color:var(--seafoam);border-color:var(--seafoam)}
+#count-disp.neg{color:#ff7070;border-color:#ff7070}
+#count-disp.neu{color:var(--foam)}
+
+/* ── Game area ── */
+#game{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:54px 20px 10px}
+
+/* ── Hand areas ── */
+.hand-area{width:100%;max-width:800px;display:flex;flex-direction:column;align-items:center;gap:7px}
+.hand-lbl{font-family:'Cinzel',serif;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--foam);opacity:.6}
+.cards-row{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:flex-end;min-height:102px}
+.hand-score{font-family:'Cormorant Garamond',serif;font-size:30px;font-weight:700;min-width:50px;text-align:center;color:var(--pearl);text-shadow:0 2px 10px rgba(0,0,0,.9);transition:color .3s}
+.hand-score.bust{color:#ff6b6b}
+.hand-score.bj{color:#fff;text-shadow:0 0 18px var(--pearl-glow),0 2px 10px rgba(0,0,0,.9)}
+
+/* ── Cards ── */
+.card{width:68px;height:100px;border-radius:var(--r-card);position:relative;cursor:default;transform-style:preserve-3d;transition:transform .6s ease}
+.card.cFlip{animation:cFlipAnim .6s ease forwards}
+@keyframes cFlipAnim{0%{transform:rotateY(0) translateY(0)}50%{transform:rotateY(90deg) translateY(-10px)}100%{transform:rotateY(0) translateY(0)}}
+.card.deal-anim{animation:cDeal .4s cubic-bezier(.22,1,.36,1) forwards}
+@keyframes cDeal{from{opacity:0;transform:translateY(55px) scale(.78) rotate(-4deg)}to{opacity:1;transform:translateY(0) scale(1) rotate(0)}}
+
+/* Card face — ocean watercolor: soft blue-green tint, like sea glass */
+.card-face{
+  width:100%;height:100%;
+  background:linear-gradient(148deg,#e8f6f8 0%,#d4edf2 40%,#cce8ee 100%);
+  border-radius:var(--r-card);box-shadow:var(--card-shadow);
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding:5px 6px;
+  border:1px solid rgba(0,150,180,.25);
+  overflow:hidden;position:relative;
+}
+/* Subtle wave pattern on card face */
+.card-face::before {
+  content:'';
+  position:absolute;inset:0;
+  background:
+    repeating-linear-gradient(
+      170deg,
+      transparent 0px, transparent 12px,
+      rgba(0,150,200,.035) 12px, rgba(0,150,200,.035) 14px
+    );
+  pointer-events:none;
+}
+
+.c-rank{font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:700;line-height:1;letter-spacing:-.5px}
+.c-suit-sm{font-size:12px;line-height:1;margin-top:1px}
+.c-suit-lg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:32px;opacity:.13;filter:saturate(1.4)}
+.c-bot{transform:rotate(180deg);display:flex;flex-direction:column;align-items:flex-start}
+
+/* Coral/warm suits: 🪸 and 🐠 */
+.card-face.warm .c-rank{color:#c0420a}
+.card-face.warm .c-suit-sm{color:#c0420a}
+/* Cool/deep suits: 🐬 and 🦑 */
+.card-face.cool .c-rank{color:#0a5c7a}
+.card-face.cool .c-suit-sm{color:#0a5c7a}
+
+/* Card back — deep ocean with wave + shell */
+.card-back{
+  width:100%;height:100%;
+  background:linear-gradient(158deg,#041828 0%,#083a5e 45%,#0a4570 75%,#041828 100%);
+  border-radius:var(--r-card);box-shadow:var(--card-shadow);
+  border:2px solid rgba(0,229,255,.3);
+  display:flex;align-items:center;justify-content:center;
+  overflow:hidden;position:relative;
+}
+/* Wave lines on card back */
+.card-back::before{
+  content:'';position:absolute;inset:0;
+  background:
+    repeating-linear-gradient(
+      175deg,
+      transparent 0px, transparent 7px,
+      rgba(0,229,255,.04) 7px, rgba(0,229,255,.04) 9px
+    );
+}
+/* Bioluminescent sparkles */
+.card-back::after{
+  content:'';position:absolute;inset:8px;border-radius:4px;
+  background:
+    radial-gradient(1.5px 1.5px at 20% 20%,rgba(0,229,255,.75) 0%,transparent 100%),
+    radial-gradient(1.5px 1.5px at 80% 75%,rgba(100,255,218,.65) 0%,transparent 100%),
+    radial-gradient(1.5px 1.5px at 50% 12%,rgba(168,216,234,.8) 0%,transparent 100%),
+    radial-gradient(1.5px 1.5px at 14% 65%,rgba(0,188,212,.7) 0%,transparent 100%),
+    radial-gradient(1.5px 1.5px at 72% 38%,rgba(0,229,255,.6) 0%,transparent 100%),
+    radial-gradient(1px 1px at 35% 55%,rgba(100,255,218,.5) 0%,transparent 100%),
+    radial-gradient(1px 1px at 60% 85%,rgba(0,229,255,.45) 0%,transparent 100%),
+    radial-gradient(1px 1px at 88% 20%,rgba(168,216,234,.5) 0%,transparent 100%),
+    radial-gradient(1px 1px at 8% 88%,rgba(100,255,218,.4) 0%,transparent 100%);
+}
+.cbp{font-size:28px;z-index:1;filter:drop-shadow(0 0 6px rgba(0,229,255,.95));animation:shellGlow 3s ease-in-out infinite alternate}
+@keyframes shellGlow{0%{opacity:.45;filter:drop-shadow(0 0 4px rgba(0,229,255,.7))}100%{opacity:.7;filter:drop-shadow(0 0 10px rgba(0,229,255,1))}}
+
+/* ── Messages ── */
+#msg-area{min-height:46px;display:flex;align-items:center;justify-content:center;gap:12px;position:relative;z-index:20}
+#result-msg{font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:700;text-align:center;letter-spacing:2px;opacity:0;transition:opacity .4s;text-shadow:0 2px 14px rgba(0,0,0,.9)}
+#result-msg.show{opacity:1}
+#result-msg.win {color:var(--pearl-lt)}
+#result-msg.lose{color:#ff6b6b}
+#result-msg.push{color:var(--foam)}
+#result-msg.bjw {color:#fff;text-shadow:0 0 24px var(--pearl-glow),0 2px 14px rgba(0,0,0,.9)}
+
+/* Fish parade */
+#win-fish{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-size:28px;pointer-events:none;z-index:600;opacity:0}
+#win-fish.swim{animation:fishSwim 1.1s ease-in-out forwards}
+@keyframes fishSwim{
+  0%  {opacity:0;transform:translate(calc(-50% - 120px),-50%) scale(.7)}
+  25% {opacity:1}
+  75% {opacity:1}
+  100%{opacity:0;transform:translate(calc(-50% + 120px),-50%) scale(1.1)}
+}
+
+#strat-hint{font-size:12px;color:var(--seafoam);background:rgba(0,18,38,.65);padding:4px 13px;border-radius:20px;border:1px solid rgba(100,255,218,.22);letter-spacing:.5px}
+
+/* ── Pearl chips ── */
+#bet-area{width:100%;max-width:700px;display:flex;flex-direction:column;align-items:center;gap:8px}
+#bet-disp{font-family:'Cormorant Garamond',serif;font-size:16px;color:var(--pearl);background:var(--ui-bg);border:1px solid var(--ui-bd);padding:4px 18px;border-radius:20px}
+#chips-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+
+.chip{
+  width:58px;height:58px;border-radius:50%;cursor:pointer;border:none;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-family:'Nunito',sans-serif;font-size:10px;font-weight:700;line-height:1.15;
+  transition:transform .16s,box-shadow .16s;
+  position:relative;overflow:hidden;
+}
+/* Pearl luster highlight */
+.chip::before{content:'';position:absolute;inset:0;border-radius:50%;background:radial-gradient(ellipse at 35% 28%,rgba(255,255,255,.65) 0%,rgba(255,255,255,.1) 40%,transparent 70%);pointer-events:none;z-index:1}
+/* Inner groove ring */
+.chip::after{content:'';position:absolute;inset:6px;border-radius:50%;border:1.5px solid rgba(255,255,255,.28);pointer-events:none;z-index:1}
+.chip span{position:relative;z-index:2}
+.chip:hover:not(:disabled){transform:translateY(-5px) scale(1.12);box-shadow:0 12px 26px rgba(0,0,0,.6),0 0 18px var(--pearl-glow)}
+.chip:active:not(:disabled){transform:translateY(-2px) scale(1.04)}
+.chip:disabled{opacity:.28;cursor:not-allowed;transform:none}
+
+/* Pearl denominations */
+.chip.c1  {background:radial-gradient(circle at 40% 35%,#fff 0%,#d8d0e8 50%,#b0a8c4 100%);color:#2a2040;box-shadow:0 5px 16px rgba(0,0,0,.5),0 0 12px rgba(200,190,240,.35)}
+.chip.c5  {background:radial-gradient(circle at 40% 35%,#ffe8ee 0%,#e8a0b4 50%,#c06080 100%);color:#3a0018;box-shadow:0 5px 16px rgba(0,0,0,.5),0 0 10px rgba(240,150,180,.3)}
+.chip.c10 {background:radial-gradient(circle at 40% 35%,#e0f4ff 0%,#80c8f0 50%,#2080c0 100%);color:#00204a;box-shadow:0 5px 16px rgba(0,0,0,.5),0 0 10px rgba(100,200,255,.3)}
+.chip.c25 {background:radial-gradient(circle at 40% 35%,#fffae0 0%,#f0d060 50%,#c09020 100%);color:#3a2800;box-shadow:0 5px 16px rgba(0,0,0,.5),0 0 10px rgba(255,220,80,.28)}
+.chip.c100{background:radial-gradient(circle at 40% 35%,#6a6888 0%,#2c2840 50%,#0e0c18 100%);color:#c0b8e0;box-shadow:0 5px 16px rgba(0,0,0,.5),0 0 12px rgba(140,120,200,.35)}
+.chip.c500{background:radial-gradient(circle at 40% 35%,#d0fff4 0%,#40c8a0 50%,#007858 100%);color:#00281c;box-shadow:0 5px 16px rgba(0,0,0,.5),0 0 12px rgba(60,220,170,.28)}
+
+@keyframes pearlPop{
+  0%  {transform:translateY(-28px) scale(.65);opacity:0}
+  55% {transform:translateY(5px) scale(1.1);opacity:1}
+  75% {transform:translateY(-3px) scale(.97)}
+  100%{transform:translateY(0) scale(1);opacity:1}
+}
+.chip.pop{animation:pearlPop .44s ease forwards}
+
+/* ── Buttons ── */
+#actions-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.btn{font-family:'Cinzel',serif;font-size:12px;letter-spacing:2px;padding:10px 20px;border-radius:6px;border:1px solid;cursor:pointer;transition:all .2s;text-transform:uppercase;position:relative;overflow:hidden}
+.btn::after{content:'';position:absolute;inset:0;background:#fff;opacity:0;transition:opacity .2s}
+.btn:hover:not(:disabled)::after{opacity:.06}
+.btn:active:not(:disabled)::after{opacity:.13}
+.btn:disabled{opacity:.22;cursor:not-allowed}
+.btn-primary{background:linear-gradient(135deg,var(--pearl),var(--pearl-dk));border-color:var(--pearl-lt);color:#1a1430;font-weight:700;box-shadow:0 3px 14px rgba(200,190,220,.4)}
+.btn-primary:hover:not(:disabled){box-shadow:0 6px 22px var(--pearl-glow);transform:translateY(-2px)}
+.btn-action{background:rgba(4,28,50,.7);border-color:rgba(0,229,255,.2);color:var(--text);backdrop-filter:blur(4px)}
+.btn-action:hover:not(:disabled){border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 12px rgba(0,229,255,.15);transform:translateY(-2px)}
+.btn-danger{background:rgba(100,20,20,.4);border-color:rgba(255,107,107,.38);color:#ffaaaa}
+.btn-danger:hover:not(:disabled){background:rgba(140,30,30,.55);transform:translateY(-2px)}
+.btn .sc{font-family:'Nunito',sans-serif;font-size:10px;opacity:.5;margin-left:4px}
+
+/* ── Side panel ── */
+#side-panel{position:fixed;right:0;top:54px;bottom:0;width:222px;background:rgba(2,12,24,.92);border-left:1px solid var(--ui-bd);backdrop-filter:blur(12px);padding:14px 12px;overflow-y:auto;z-index:50;transform:translateX(100%);transition:transform .3s ease}
+#side-panel.open{transform:translateX(0)}
+#panel-tog{position:fixed;right:14px;top:62px;background:var(--ui-bg);border:1px solid var(--ui-bd);color:var(--foam);border-radius:4px;width:32px;height:32px;cursor:pointer;z-index:60;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background .2s,border-color .2s}
+#panel-tog:hover{background:rgba(0,229,255,.1);border-color:var(--cyan)}
+.p-sec{margin-bottom:16px}
+.p-ttl{font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;color:var(--foam);border-bottom:1px solid var(--ui-bd);padding-bottom:4px;margin-bottom:8px}
+.s-row{display:flex;justify-content:space-between;font-size:12px;padding:2px 0;color:rgba(168,216,234,.8)}
+.s-val{color:var(--pearl);font-weight:700}
+.h-item{font-size:11px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.05);display:flex;justify-content:space-between}
+.hw{color:var(--seafoam)}.hl{color:#ff9a9a}.hp{color:var(--foam)}
+
+/* ── Insurance ── */
+#ins-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,8,18,.82);backdrop-filter:blur(8px);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+#ins-overlay.show{opacity:1;pointer-events:all}
+.ins-box{background:linear-gradient(148deg,#04121f,#083a5e);border:2px solid rgba(220,210,255,.28);border-radius:14px;padding:28px 36px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,.85),0 0 40px rgba(180,160,240,.12)}
+.ins-box h3{font-family:'Cormorant Garamond',serif;font-size:24px;color:var(--pearl);margin-bottom:8px}
+.ins-box p{font-size:13px;opacity:.82;margin-bottom:18px;color:var(--text)}
+.ins-btns{display:flex;gap:12px;justify-content:center}
+
+/* ── Particles ── */
+#ptcl{position:fixed;inset:0;pointer-events:none;z-index:500;overflow:hidden}
+.ptcl{position:absolute;border-radius:50%;animation:riseParticle linear forwards}
+@keyframes riseParticle{0%{transform:translateY(0) scale(1);opacity:.9}100%{transform:translateY(-110vh) scale(.3);opacity:0}}
+
+/* ── Split hands ── */
+#split-hands{display:flex;gap:20px;justify-content:center;width:100%;max-width:800px}
+.split-hand{flex:1;max-width:380px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:8px;border-radius:10px;border:1px solid transparent;transition:border-color .3s}
+.split-hand.active-hand{border-color:rgba(0,229,255,.45);box-shadow:0 0 22px rgba(0,229,255,.15)}
+.sh-lbl{font-size:10px;letter-spacing:2px;color:var(--foam);font-family:'Cinzel',serif;text-transform:uppercase}
+
+#kb{font-size:10px;color:rgba(168,216,234,.28);letter-spacing:1px;text-align:center;font-family:'Nunito',sans-serif}
+.hidden{display:none!important}
+
+@media(max-width:600px){
+  /* HUD: stack into 2 rows on mobile */
+  #hud{
+    flex-wrap:wrap;padding:5px 10px;gap:2px;
+  }
+  #hud-title{
+    order:-1;width:100%;text-align:center;
+    font-size:13px;letter-spacing:3px;padding-bottom:3px;
+    border-bottom:1px solid var(--ui-bd);margin-bottom:2px;
+  }
+  .hud-item{min-width:60px;flex:1}
+  .hud-lbl{font-size:7px;letter-spacing:1px}
+  .hud-val{font-size:14px}
+  #count-disp{font-size:13px;padding:1px 6px}
+
+  /* Shrink game padding to account for taller HUD */
+  #game{padding-top:70px;padding-bottom:6px;padding-left:8px;padding-right:8px}
+
+  /* Cards */
+  .card{width:50px;height:76px}
+  .c-rank{font-size:13px}
+  .c-suit-sm{font-size:11px}
+  .c-suit-lg{font-size:22px}
+  .cards-row{gap:4px;min-height:80px}
+  .hand-score{font-size:22px}
+  .hand-lbl{font-size:8px;letter-spacing:2px}
+
+  /* Chips: smaller, fewer columns */
+  .chip{width:48px;height:48px;font-size:9px}
+  #chips-row{gap:5px}
+  #bet-disp{font-size:13px;padding:3px 12px}
+
+  /* Action buttons */
+  #actions-row{gap:5px}
+  .btn{font-size:10px;padding:7px 10px;letter-spacing:1px}
+  .btn .sc{display:none} /* hide keyboard shortcuts on mobile */
+  #kb{display:none}
+
+  /* Side panel */
+  #side-panel{width:200px}
+  #panel-tog{right:6px;top:auto;bottom:80px}
+
+  /* Creatures */
+  #shark{font-size:32px}
+  .kelp{width:11px}
+  .jelly{font-size:18px!important}
+
+  /* Split hands: narrower */
+  #split-hands{gap:10px}
+  .split-hand{padding:5px}
+  .sh-lbl{font-size:8px}
+
+  /* Msg area */
+  #result-msg{font-size:20px}
+  #strat-hint{font-size:11px;padding:3px 10px}
+}
+
+@media(max-width:380px){
+  .chip{width:42px;height:42px;font-size:8px}
+  .card{width:44px;height:66px}
+  .c-rank{font-size:11px}
+  .c-suit-lg{font-size:18px}
+  .btn{font-size:9px;padding:6px 8px}
+  #hud-title{font-size:11px;letter-spacing:2px}
+}
+
+</style>
+</head>
+<body>
+
+<div id="ocean-layers"></div>
+<div id="shark">🦈</div>
+<div class="jelly" style="left:5%;top:32%;font-size:26px;animation-duration:4.3s;animation-delay:.0s">🪼</div>
+<div class="jelly" style="left:93%;top:40%;font-size:30px;animation-duration:5.7s;animation-delay:1.2s">🪼</div>
+<div class="jelly" style="left:2%;top:60%;font-size:18px;animation-duration:3.8s;animation-delay:.6s">🪼</div>
+<div class="jelly" style="left:97%;top:22%;font-size:16px;animation-duration:6.2s;animation-delay:2.0s">🪼</div>
+<div id="kelp-row"></div>
+
+<div id="hud">
+  <div class="hud-item"><span class="hud-lbl">Pearls</span><span class="hud-val" id="hud-bal">🦪 1,000</span></div>
+  <div class="hud-item"><span class="hud-lbl">Wager</span><span class="hud-val" id="hud-bet">🦪 0</span></div>
+  <div id="hud-title">〰 BLACKJACK 〰</div>
+  <div class="hud-item"><span class="hud-lbl">Current</span><span id="count-disp" class="neu">0</span></div>
+  <div class="hud-item"><span class="hud-lbl">Shoe</span><span class="hud-val" id="hud-shoe">312</span></div>
+</div>
+
+<button id="panel-tog" title="Stats">🐚</button>
+
+<div id="side-panel">
+  <div class="p-sec">
+    <div class="p-ttl">🤿 Dive Stats</div>
+    <div class="s-row"><span>Dives</span><span class="s-val" id="st-hands">0</span></div>
+    <div class="s-row"><span>Win Rate</span><span class="s-val" id="st-wr">—</span></div>
+    <div class="s-row"><span>Biggest Haul</span><span class="s-val" id="st-big">🦪 0</span></div>
+    <div class="s-row"><span>Streak</span><span class="s-val" id="st-str">0</span></div>
+    <div class="s-row"><span>Best Streak</span><span class="s-val" id="st-bst">0</span></div>
+    <div class="s-row"><span>Net Treasure</span><span class="s-val" id="st-pl">🦪 0</span></div>
+  </div>
+  <div class="p-sec">
+    <div class="p-ttl">🐬 Strategy</div>
+    <div id="panel-hint" style="font-size:12px;color:var(--seafoam);line-height:1.55">Drop a pearl to dive.</div>
+  </div>
+  <div class="p-sec">
+    <div class="p-ttl">📜 Dive Log</div>
+    <div id="hist-list"></div>
+  </div>
+</div>
+
+<div id="game">
+  <div class="hand-area">
+    <div class="hand-lbl">🐙 The Abyss Dealer</div>
+    <div class="cards-row" id="dealer-cards"></div>
+    <div class="hand-score" id="dealer-score"></div>
+  </div>
+
+  <div id="msg-area">
+    <div id="result-msg"></div>
+    <div id="strat-hint" class="hidden"></div>
+  </div>
+
+  <div class="hand-area">
+    <div class="hand-lbl">🧜 Your Hand</div>
+    <div id="split-cont" style="width:100%">
+      <div id="player-single" style="display:flex;flex-direction:column;align-items:center;gap:8px">
+        <div class="cards-row" id="player-cards"></div>
+        <div class="hand-score" id="player-score"></div>
+      </div>
+      <div id="split-hands" class="hidden">
+        <div class="split-hand" id="sh0"><div class="sh-lbl">🪸 Reef 1</div><div class="cards-row" id="sc0"></div><div class="hand-score" id="ss0"></div></div>
+        <div class="split-hand" id="sh1"><div class="sh-lbl">🪸 Reef 2</div><div class="cards-row" id="sc1"></div><div class="hand-score" id="ss1"></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="bet-area">
+    <div id="bet-disp">🗺️ Treasure: <span id="bet-show">🦪 0</span></div>
+    <div id="chips-row">
+      <button class="chip c1"   data-v="1"  ><span>🦪<br>1</span></button>
+      <button class="chip c5"   data-v="5"  ><span>🦪<br>5</span></button>
+      <button class="chip c10"  data-v="10" ><span>🦪<br>10</span></button>
+      <button class="chip c25"  data-v="25" ><span>🦪<br>25</span></button>
+      <button class="chip c100" data-v="100"><span>🦪<br>100</span></button>
+      <button class="chip c500" data-v="500"><span>🦪<br>500</span></button>
+    </div>
+    <div id="actions-row">
+      <button class="btn btn-primary" id="btn-deal"   disabled>Deal <span class="sc">[D]</span></button>
+      <button class="btn btn-action"  id="btn-hit"    disabled>Hit <span class="sc">[H]</span></button>
+      <button class="btn btn-action"  id="btn-stand"  disabled>Stand <span class="sc">[S]</span></button>
+      <button class="btn btn-action"  id="btn-double" disabled>Double <span class="sc">[X]</span></button>
+      <button class="btn btn-action"  id="btn-split"  disabled>Split</button>
+      <button class="btn btn-danger"  id="btn-clear">Clear</button>
+    </div>
+    <div id="kb">H = Hit · S = Stand · D = Deal/New · X = Double · C = Clear Bet</div>
+  </div>
+</div>
+
+<div id="ins-overlay">
+  <div class="ins-box">
+    <h3>🦪 Take Insurance?</h3>
+    <p>The dealer surfaces an Ace from the deep.<br>
+       Risk <span id="ins-cost"></span> pearls?<br>
+       Pays 2:1 if the abyss holds a Blackjack.</p>
+    <div class="ins-btns">
+      <button class="btn btn-primary" id="btn-ins-y">Dive In</button>
+      <button class="btn btn-action"  id="btn-ins-n">Swim Away</button>
+    </div>
+  </div>
+</div>
+
+<div id="ptcl"></div>
+<div id="win-fish">🐟 🐠 🐡</div>
+
+<script>
+/* ── Audio ── */
+let aCtx=null;
+function audio(){if(!aCtx)aCtx=new(window.AudioContext||window.webkitAudioContext)()}
+function tone(freq,type,dur,gain=0.13){
+  try{
+    audio();
+    const o=aCtx.createOscillator(),g=aCtx.createGain();
+    o.connect(g);g.connect(aCtx.destination);
+    o.type=type;o.frequency.value=freq;
+    g.gain.setValueAtTime(gain,aCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001,aCtx.currentTime+dur);
+    o.start();o.stop(aCtx.currentTime+dur);
+  }catch(e){}
+}
+/* Pearl drop — soft plunk */
+function pearlDrop(){tone(700,'sine',.14,.1);setTimeout(()=>tone(520,'sine',.09,.07),55);setTimeout(()=>tone(350,'sine',.07,.04),100)}
+
+const SFX={
+  card(){tone(620,'triangle',.08,.07);setTimeout(()=>tone(450,'triangle',.05,.05),50)},
+  chip(){pearlDrop()},
+  win(){[330,440,550,660,880].forEach((f,i)=>setTimeout(()=>tone(f,'sine',.25,.13),i*70))},
+  bigWin(){
+    [330,440,550,660,880,1100].forEach((f,i)=>setTimeout(()=>tone(f,'triangle',.35,.16),i*65));
+    setTimeout(()=>[880,1100,1320].forEach((f,i)=>setTimeout(()=>tone(f,'sine',.2,.12),i*80)),500);
+  },
+  lose(){tone(175,'sawtooth',.5,.1);setTimeout(()=>tone(145,'sawtooth',.4,.07),200)},
+  push(){tone(440,'sine',.18,.08);setTimeout(()=>tone(440,'sine',.18,.06),220)},
+  bust(){tone(155,'square',.36,.12)}
+};
+
+/* ── Cards ── */
+// Ocean suits: 🐬 Dolphin, 🪸 Coral, 🐠 Clownfish, 🦑 Squid
+// Warm suits (coral/fish): 🪸 🐠  |  Cool suits (dolphin/squid): 🐬 🦑
+const SUITS=['🐬','🪸','🐠','🦑'],RANKS=['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const WARM=new Set(['🪸','🐠']);
+function cVal(r){return r==='A'?11:['K','Q','J'].includes(r)?10:parseInt(r)}
+function total(hand){let t=0,a=0;for(const c of hand){t+=cVal(c.rank);if(c.rank==='A')a++}while(t>21&&a){t-=10;a--}return t}
+function isSoft(hand){let t=0,a=0;for(const c of hand){t+=cVal(c.rank);if(c.rank==='A')a++}let sa=a;while(t>21&&sa){t-=10;sa--}return sa>0}
+function isBJ(hand){return hand.length===2&&total(hand)===21}
+function hilo(r){return['2','3','4','5','6'].includes(r)?1:['10','J','Q','K','A'].includes(r)?-1:0}
+
+/* ── Shoe ── */
+function buildShoe(){const s=[];for(let d=0;d<6;d++)for(const suit of SUITS)for(const rank of RANKS)s.push({rank,suit,id:`${rank}${suit}${d}`});return s}
+function fyShuf(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+/* ── State ── */
+const S={BET:'b',PLAY:'p',DONE:'d'};
+let shoe=[],runCount=0,state=S.BET;
+let balance=1000,bet=0,insBet=0;
+let dHand=[],pHand=[];
+// splitWagers[i] tracks the actual amount wagered on each split hand (supports doubling)
+let splitHands=[[],[]],splitWagers=[0,0],isSplit=false,splitIdx=0,splitAces=false;
+let stats={hands:0,wins:0,losses:0,pushes:0,bigWin:0,streak:0,bestStreak:0,netPL:0};
+let history=[];
+
+function initShoe(){shoe=fyShuf(buildShoe());updateShoe()}
+function deal(hidden=false){
+  if(shoe.length<10)shoe=fyShuf(buildShoe());
+  const c=shoe.pop();c.hidden=hidden;
+  if(!hidden){runCount+=hilo(c.rank);updateCount()}
+  updateShoe();return c;
+}
+function reveal(c){if(c.hidden){c.hidden=false;runCount+=hilo(c.rank);updateCount()}}
+
+/* ── Format ── */
+function pearl(n){return '🦪 '+n.toLocaleString('en-US')}
+
+
+/* ── DOM helpers ── */
+function makeCard(c){
+  const el=document.createElement('div');
+  el.className='card deal-anim';el.dataset.id=c.id;
+  if(c.hidden){
+    el.innerHTML='<div class="card-back"><div class="cbp">🐚</div></div>';
+  }else{
+    const col=WARM.has(c.suit)?'warm':'cool';
+    el.innerHTML=`<div class="card-face ${col}"><div><div class="c-rank">${c.rank}</div><div class="c-suit-sm">${c.suit}</div></div><div class="c-suit-lg">${c.suit}</div><div class="c-bot"><div class="c-rank">${c.rank}</div><div class="c-suit-sm">${c.suit}</div></div></div>`;
+  }
+  return el;
+}
+function flipEl(container,c){
+  const el=container.querySelector(`[data-id="${c.id}"]`);
+  if(!el)return;
+  el.classList.add('cFlip');
+  setTimeout(()=>{
+    const col=WARM.has(c.suit)?'warm':'cool';
+    el.innerHTML=`<div class="card-face ${col}"><div><div class="c-rank">${c.rank}</div><div class="c-suit-sm">${c.suit}</div></div><div class="c-suit-lg">${c.suit}</div><div class="c-bot"><div class="c-rank">${c.rank}</div><div class="c-suit-sm">${c.suit}</div></div></div>`;
+    el.classList.remove('cFlip');
+  },300);
+}
+function renderHand(cont,hand){cont.innerHTML='';hand.forEach((c,i)=>{const el=makeCard(c);el.style.animationDelay=`${i*.05}s`;cont.appendChild(el)})}
+function setScore(el,hand,hideHidden=false){
+  if(hideHidden){const vis=hand.filter(c=>!c.hidden);el.textContent=vis.length?total(vis):'';el.className='hand-score';return}
+  const t=total(hand);el.textContent=t||'';
+  el.className='hand-score'+(t>21?' bust':isBJ(hand)?' bj':'');
+}
+
+/* ── HUD ── */
+function updateHUD(){document.getElementById('hud-bal').textContent=pearl(balance);document.getElementById('hud-bet').textContent=pearl(bet);document.getElementById('bet-show').textContent=pearl(bet)}
+function updateShoe(){document.getElementById('hud-shoe').textContent=shoe.length}
+function updateCount(){const el=document.getElementById('count-disp');el.textContent=(runCount>=0?'+':'')+runCount;el.className=runCount>0?'pos':runCount<0?'neg':'neu'}
+
+/* ── Buttons ── */
+function updateBtns(){
+  const isB=state===S.BET,isP=state===S.PLAY,isD=state===S.DONE;
+  document.querySelectorAll('.chip').forEach(c=>c.disabled=!isB);
+  document.getElementById('btn-clear').disabled=!isB;
+  const db=document.getElementById('btn-deal');
+  if(isD){db.innerHTML='New Dive';db.disabled=false}
+  else{db.innerHTML='Deal <span class="sc">[D]</span>';db.disabled=!(isB&&bet>0)}
+  const hit=document.getElementById('btn-hit'),stand=document.getElementById('btn-stand'),dbl=document.getElementById('btn-double'),spl=document.getElementById('btn-split');
+  hit.disabled=stand.disabled=dbl.disabled=spl.disabled=!isP;
+  if(isP){
+    const h=isSplit?splitHands[splitIdx]:pHand;
+    // Double cost = current wager on this hand (original bet, or half-bet per split hand)
+    const doubleCost=isSplit?splitWagers[splitIdx]:bet;
+    dbl.disabled=h.length!==2||balance<doubleCost;
+    spl.disabled=isSplit||pHand.length!==2||pHand[0].rank!==pHand[1].rank||balance<bet;
+    if(isSplit&&splitAces)hit.disabled=true;
+  }
+}
+
+/* ── Strategy ── */
+function stratHint(pCards,dealerUp){
+  if(!pCards||pCards.length<2||!dealerUp)return'';
+  const pt=total(pCards),soft=isSoft(pCards),dv=cVal(dealerUp.rank);
+  const pair=pCards.length===2&&pCards[0].rank===pCards[1].rank;
+  if(pair){
+    const r=pCards[0].rank;
+    if(r==='A'||r==='8')return'SPLIT — Always split Aces & 8s';
+    if(r==='4')return dv>=5&&dv<=6?'SPLIT vs 5-6':'HIT';
+    if(r==='5')return dv>=2&&dv<=9?'DOUBLE vs 2-9':'HIT';
+    if(r==='6')return dv>=2&&dv<=6?'SPLIT':'HIT';
+    if(r==='7')return dv>=2&&dv<=7?'SPLIT':'HIT';
+    if(r==='9')return(dv===7||dv>=10)?'STAND':'SPLIT';
+    if(r==='2'||r==='3')return dv>=2&&dv<=7?'SPLIT':'HIT';
+    if(['10','J','Q','K'].includes(r))return'STAND — Never split 10s';
+  }
+  if(soft){
+    if(pt>=19)return'STAND';
+    if(pt===18)return dv>=2&&dv<=6?'DOUBLE/STAND':dv>=9?'HIT':'STAND';
+    if(pt===17)return dv>=3&&dv<=6?'DOUBLE':'HIT';
+    return'HIT';
+  }
+  if(pt>=17)return'STAND';
+  if(pt>=13&&pt<=16)return dv>=2&&dv<=6?'STAND':'HIT';
+  if(pt===12)return dv>=4&&dv<=6?'STAND':'HIT';
+  if(pt===11)return'DOUBLE — vs any';
+  if(pt===10)return dv>=2&&dv<=9?'DOUBLE':'HIT';
+  if(pt===9)return dv>=3&&dv<=6?'DOUBLE':'HIT';
+  return'HIT';
+}
+function showHint(){const up=dHand.find(c=>!c.hidden),ph=isSplit?splitHands[splitIdx]:pHand,h=stratHint(ph,up);if(h){const e=document.getElementById('strat-hint');e.textContent='🐬 '+h;e.classList.remove('hidden');document.getElementById('panel-hint').textContent=h}}
+function hideHint(){document.getElementById('strat-hint').classList.add('hidden')}
+
+/* ── Stats ── */
+function record(result,b,net){
+  stats.hands++;stats.netPL+=net;
+  if(result==='win'||result==='bj'){stats.wins++;stats.streak=Math.max(0,stats.streak)+1;stats.bestStreak=Math.max(stats.bestStreak,stats.streak);if(net>stats.bigWin)stats.bigWin=net}
+  else if(result==='loss'){stats.losses++;stats.streak=Math.min(0,stats.streak)-1}
+  else stats.pushes++;
+  history.unshift({result,b,net});if(history.length>20)history.pop();
+  refreshStats();
+}
+function refreshStats(){
+  document.getElementById('st-hands').textContent=stats.hands;
+  document.getElementById('st-wr').textContent=stats.hands>0?((stats.wins/stats.hands)*100).toFixed(1)+'%':'—';
+  document.getElementById('st-big').textContent=pearl(stats.bigWin);
+  const s=stats.streak,se=document.getElementById('st-str');
+  se.textContent=(s>0?'+':'')+s;se.style.color=s>0?'var(--seafoam)':s<0?'#ff9a9a':'var(--pearl)';
+  document.getElementById('st-bst').textContent=stats.bestStreak;
+  const p=stats.netPL,pe=document.getElementById('st-pl');
+  pe.textContent=(p>=0?'+':'')+pearl(p);pe.style.color=p>=0?'var(--seafoam)':'#ff9a9a';
+  document.getElementById('hist-list').innerHTML=history.slice(0,10).map(h=>{
+    const cls=h.result==='win'||h.result==='bj'?'hw':h.result==='loss'?'hl':'hp';
+    const lbl=h.result==='bj'?'BLACKJACK':h.result.toUpperCase();
+    return`<div class="h-item ${cls}"><span>${lbl}</span><span>${(h.net>=0?'+':'')+pearl(h.net)}</span></div>`;
+  }).join('');
+}
+
+/* ── Pearl burst particles ── */
+function burst(count=40){
+  const cont=document.getElementById('ptcl');
+  const colors=['rgba(255,255,255,.88)','rgba(220,210,255,.82)','rgba(180,240,255,.8)','rgba(200,255,230,.78)','rgba(255,210,230,.8)'];
+  for(let i=0;i<count;i++){
+    const p=document.createElement('div');p.className='ptcl';
+    const sz=4+Math.random()*10;
+    p.style.cssText=`left:${15+Math.random()*70}%;bottom:${8+Math.random()*30}%;width:${sz}px;height:${sz}px;background:radial-gradient(circle at 35% 30%,rgba(255,255,255,.9),${colors[i%colors.length]});box-shadow:0 0 ${Math.ceil(sz/2)}px rgba(200,190,255,.55);animation-duration:${1.2+Math.random()*2.5}s;animation-delay:${Math.random()*.4}s`;
+    cont.appendChild(p);setTimeout(()=>p.remove(),3600);
+  }
+}
+
+/* ── Fish parade ── */
+function fishParade(){
+  const el=document.getElementById('win-fish');
+  el.style.animation='none';void el.offsetWidth;
+  el.className='swim';
+  setTimeout(()=>el.className='',1200);
+}
+
+/* ── Messages ── */
+function msg(text,type){const e=document.getElementById('result-msg');e.textContent=text;e.className='show '+type}
+function clrMsg(){const e=document.getElementById('result-msg');e.className='';e.textContent=''}
+
+/* ── Render ── */
+function renderAll(hideHole=true){
+  renderHand(document.getElementById('dealer-cards'),dHand);
+  setScore(document.getElementById('dealer-score'),dHand,hideHole);
+  if(isSplit){
+    document.getElementById('player-single').style.display='none';
+    document.getElementById('split-hands').classList.remove('hidden');
+    for(let i=0;i<2;i++){
+      renderHand(document.getElementById(`sc${i}`),splitHands[i]);
+      setScore(document.getElementById(`ss${i}`),splitHands[i]);
+      document.getElementById(`sh${i}`).classList.toggle('active-hand',i===splitIdx&&state===S.PLAY);
+    }
+  }else{
+    document.getElementById('player-single').style.display='';
+    document.getElementById('split-hands').classList.add('hidden');
+    renderHand(document.getElementById('player-cards'),pHand);
+    setScore(document.getElementById('player-score'),pHand);
+  }
+}
+
+/* ── Deal round ── */
+function dealRound(){
+  audio();
+  if(shoe.length<52){shoe=fyShuf(buildShoe());runCount=0;updateCount();updateShoe()}
+  state=S.PLAY;isSplit=false;splitAces=false;splitHands=[[],[]];splitWagers=[0,0];splitIdx=0;insBet=0;
+  clrMsg();hideHint();balance-=bet;updateHUD();
+  dHand=[];pHand=[];
+  pHand.push(deal());dHand.push(deal());pHand.push(deal());dHand.push(deal(true));
+  renderAll(true);updateBtns();
+  setTimeout(()=>{SFX.card();if(dHand[0].rank==='A'){setTimeout(()=>offerIns(),650);return}checkEarlyBJ()},420);
+}
+
+function checkEarlyBJ(){
+  const pBJ=isBJ(pHand),dBJ=isBJ(dHand);
+  if(pBJ&&dBJ){
+    revealHole(()=>{
+      // Pay insurance if taken, then push the main bet
+      let insNet=0;
+      if(insBet>0){balance+=insBet*3;insNet=insBet*2}
+      const m='PUSH — Both Blackjack! 🤝'+(insNet?` (Ins: +${pearl(insNet)})`:'');
+      msg(m,'push');SFX.push();balance+=bet;finish('push',0);
+    });
+    return;
+  }
+  if(dBJ){
+    revealHole(()=>{
+      // Pay insurance if taken, then lose main bet
+      let insNet=0;
+      if(insBet>0){balance+=insBet*3;insNet=insBet*2}
+      const m=`Dealer Blackjack! 🦈 You lose.`+(insNet?` (Ins: +${pearl(insNet)})`:'');
+      msg(m,'lose');SFX.lose();finish('loss',-bet);
+    });
+    return;
+  }
+  // Insurance is lost silently if dealer doesn't have BJ (already deducted)
+  if(pBJ){
+    revealHole(()=>{
+      const pay=Math.floor(bet*1.5);
+      balance+=bet+pay;
+      msg(`BLACKJACK! 🐬 +${pearl(pay)}`,'bjw');
+      SFX.bigWin();burst(72);fishParade();
+      finish('bj',pay);
+    });
+    return;
+  }
+  showHint();
+}
+
+function offerIns(){
+  const cost=Math.floor(bet/2);
+  if(balance<cost){checkEarlyBJ();return}
+  document.getElementById('ins-cost').textContent=pearl(cost);
+  document.getElementById('ins-overlay').classList.add('show');
+}
+function resolveIns(take){
+  document.getElementById('ins-overlay').classList.remove('show');
+  if(take){insBet=Math.floor(bet/2);balance-=insBet;updateHUD()}
+  checkEarlyBJ(); // showHint called inside if no early BJ
+}
+function revealHole(cb){
+  const hc=dHand.find(c=>c.hidden);
+  if(!hc){if(cb)cb();return}
+  reveal(hc);SFX.card();
+  flipEl(document.getElementById('dealer-cards'),hc);
+  setScore(document.getElementById('dealer-score'),dHand);
+  setTimeout(cb,660);
+}
+
+function doHit(){
+  if(state!==S.PLAY)return;
+  const hand=isSplit?splitHands[splitIdx]:pHand;
+  hand.push(deal());SFX.card();renderAll(true);updateBtns();
+  const t=total(hand);
+  if(t>21){
+    SFX.bust();
+    if(isSplit){
+      // Record the bust loss for this split hand, then move on
+      const w=splitWagers[splitIdx];
+      record('loss',w,-w);
+      nextSplit();
+    } else {
+      revealHole(()=>{msg('BUST! 🌊 You lose.','lose');finish('loss',-bet)});
+    }
+    return;
+  }
+  if(t===21)setTimeout(doStand,300);else showHint();
+}
+
+function doStand(){
+  if(state!==S.PLAY)return;
+  hideHint();
+  if(isSplit){nextSplit();return}
+  revealHole(()=>dealerPlay());
+}
+
+function doDouble(){
+  if(state!==S.PLAY)return;
+  const hand=isSplit?splitHands[splitIdx]:pHand;
+  if(hand.length!==2)return;
+  // Cost = current wager on this hand
+  const doubleCost=isSplit?splitWagers[splitIdx]:bet;
+  if(balance<doubleCost)return;
+  balance-=doubleCost;
+  if(isSplit){
+    splitWagers[splitIdx]+=doubleCost; // track doubled wager per hand
+  } else {
+    bet+=doubleCost; // bet = total wagered (original + double)
+  }
+  updateHUD();
+  hand.push(deal());SFX.card();renderAll(true);
+  const t=total(hand);
+  if(t>21){
+    SFX.bust();
+    if(isSplit){
+      const w=splitWagers[splitIdx];
+      record('loss',w,-w);
+      revealHole(()=>nextSplit());
+    } else {
+      revealHole(()=>{msg('BUST! 🌊','lose');finish('loss',-bet)});
+    }
+  } else {
+    setTimeout(doStand,520);
+  }
+}
+
+function doSplit(){
+  if(isSplit||pHand.length!==2||pHand[0].rank!==pHand[1].rank||balance<bet)return;
+  // At deal we already deducted 'bet'. Splitting means two hands of bet/2 each.
+  // We already paid bet, so we need to pay one more halfBet for the second hand.
+  // Refund (bet - halfBet) and re-deduct halfBet×2 = just deduct one extra halfBet net.
+  const halfBet=Math.floor(bet/2);
+  balance -= halfBet; // net: now have paid halfBet×2 total
+  bet = halfBet;      // bet variable now represents wager per hand for non-doubled path
+  updateHUD();
+  splitHands[0]=[pHand[0]];splitHands[1]=[pHand[1]];
+  splitWagers[0]=halfBet;splitWagers[1]=halfBet;
+  splitAces=pHand[0].rank==='A';isSplit=true;splitIdx=0;
+  splitHands[0].push(deal());splitHands[1].push(deal());
+  SFX.card();renderAll(true);updateBtns();showHint();
+  if(splitAces)setTimeout(()=>{splitIdx=0;nextSplit(true)},750);
+}
+function nextSplit(aces=false){
+  if(splitIdx===0){
+    splitIdx=1;renderAll(true);updateBtns();
+    if(!aces)showHint();else setTimeout(()=>nextSplit(true),500);
+  } else {
+    renderAll(true);revealHole(()=>dealerPlay());
+  }
+}
+
+function dealerPlay(){
+  const t=total(dHand),soft=isSoft(dHand);
+  // Standard rule: dealer stands on soft 17 (hits hard 16 and below, hits soft 16 and below)
+  if(t<17){dHand.push(deal());SFX.card();renderAll(false);setTimeout(dealerPlay,620)}
+  else{renderAll(false);setTimeout(evalRound,420)}
+}
+
+function evalRound(){
+  const dt=total(dHand),dBust=dt>21;
+  if(isSplit){
+    let totalNet=0,msgs=[];
+    for(let i=0;i<2;i++){
+      const h=splitHands[i],pt=total(h),pb=pt>21,w=splitWagers[i];
+      // If hand already busted, it was already recorded in doHit — skip payout, just show message
+      if(pb){
+        msgs.push(`Reef ${i+1}: Bust`);
+        totalNet-=w; // count for win/lose sfx decision
+        continue;
+      }
+      let net=0,res='';
+      if(dBust||pt>dt){net=w;res='win';balance+=w*2;msgs.push(`Reef ${i+1}: Win! 🐠`)}
+      else if(pt===dt){net=0;res='push';balance+=w;msgs.push(`Reef ${i+1}: Push`)}
+      else{net=-w;res='loss';msgs.push(`Reef ${i+1}: Lose`)}
+      totalNet+=net;record(res,w,net);
+    }
+    if(totalNet>0){SFX.win();burst(38);fishParade();msg(msgs.join(' | '),'win')}
+    else if(totalNet===0){SFX.push();msg(msgs.join(' | '),'push')}
+    else{SFX.lose();msg(msgs.join(' | '),'lose')}
+    updateHUD();state=S.DONE;updateBtns();return;
+  }
+  const pt=total(pHand);
+  let insNet=0;
+  if(insBet>0&&isBJ(dHand)){balance+=insBet*3;insNet=insBet*2}
+  let res,net,m,mt;
+  if(pt>21){res='loss';net=-bet;m='BUST! 🌊 You lose.';mt='lose';SFX.bust()}
+  else if(dBust){res='win';net=bet;balance+=bet*2;m=`Dealer Busts! 🌊 You win ${pearl(bet)}!`;mt='win';SFX.win();burst(44);fishParade()}
+  else if(isBJ(pHand)&&!isBJ(dHand)){const pay=Math.floor(bet*1.5);res='bj';net=pay;balance+=bet+pay;m=`BLACKJACK! 🐬 +${pearl(pay)}`;mt='bjw';SFX.bigWin();burst(74);fishParade()}
+  else if(pt>dt){res='win';net=bet;balance+=bet*2;m=`You win! 🐠 +${pearl(bet)}`;mt='win';SFX.win();burst(34);fishParade()}
+  else if(pt===dt){res='push';net=0;balance+=bet;m='Push 🪸 — Pearls returned.';mt='push';SFX.push()}
+  else{res='loss';net=-bet;m='Dealer wins. 🦈';mt='lose';SFX.lose()}
+  if(insNet)m+=` (Ins: +${pearl(insNet)})`;
+  msg(m,mt);record(res,bet,net+insNet);updateHUD();state=S.DONE;updateBtns();
+}
+
+function finish(res,net){record(res,bet,net);updateHUD();state=S.DONE;renderAll(false);updateBtns()}
+
+function newRound(){
+  audio();clrMsg();hideHint();
+  state=S.BET;bet=0;isSplit=false;splitAces=false;
+  splitHands=[[],[]];splitWagers=[0,0];splitIdx=0;insBet=0;
+  dHand=[];pHand=[];
+  ['dealer-cards','player-cards','sc0','sc1'].forEach(id=>document.getElementById(id).innerHTML='');
+  ['dealer-score','player-score','ss0','ss1'].forEach(id=>document.getElementById(id).textContent='');
+  document.getElementById('player-single').style.display='';
+  document.getElementById('split-hands').classList.add('hidden');
+  updateHUD();updateBtns();
+  if(balance<=0){balance=1000;msg('The sea provides! 🪼 1,000 pearls restored','push');setTimeout(clrMsg,2800);updateHUD()}
+}
+
+function addBet(amt){
+  if(state!==S.BET)return;
+  if(balance-bet<amt)return;
+  bet+=amt;SFX.chip();updateHUD();updateBtns();
+  const btn=document.querySelector(`.chip[data-v="${amt}"]`);
+  if(btn){btn.classList.remove('pop');void btn.offsetWidth;btn.classList.add('pop');setTimeout(()=>btn.classList.remove('pop'),460)}
+}
+
+/* ── Events ── */
+document.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>addBet(+b.dataset.v)));
+document.getElementById('btn-deal').addEventListener('click',()=>{if(state===S.DONE)newRound();else if(state===S.BET&&bet>0)dealRound()});
+document.getElementById('btn-hit').addEventListener('click',doHit);
+document.getElementById('btn-stand').addEventListener('click',doStand);
+document.getElementById('btn-double').addEventListener('click',doDouble);
+document.getElementById('btn-split').addEventListener('click',doSplit);
+document.getElementById('btn-clear').addEventListener('click',()=>{if(state===S.BET){bet=0;updateHUD();updateBtns()}});
+document.getElementById('btn-ins-y').addEventListener('click',()=>resolveIns(true));
+document.getElementById('btn-ins-n').addEventListener('click',()=>resolveIns(false));
+document.getElementById('panel-tog').addEventListener('click',()=>document.getElementById('side-panel').classList.toggle('open'));
+document.addEventListener('keydown',e=>{
+  if(e.target.tagName==='INPUT')return;
+  switch(e.key.toUpperCase()){
+    case 'H':if(!document.getElementById('btn-hit').disabled)doHit();break;
+    case 'S':if(!document.getElementById('btn-stand').disabled)doStand();break;
+    case 'D':if(state===S.DONE)newRound();else if(state===S.BET&&bet>0)dealRound();break;
+    case 'X':if(!document.getElementById('btn-double').disabled)doDouble();break;
+    case '1':addBet(1);break;case '5':addBet(5);break;
+    case '0':addBet(10);break;case '2':addBet(25);break;
+    case 'C':if(state===S.BET){bet=0;updateHUD();updateBtns()}break;
+  }
+});
+
+/* ── Build kelp forest ── */
+(function(){
+  const row=document.getElementById('kelp-row');
+  const count=Math.floor(Math.max(window.innerWidth,400)/20)+4;
+  for(let i=0;i<count;i++){
+    const k=document.createElement('div');k.className='kelp';
+    k.style.cssText=`height:${60+Math.random()*90}px;width:${14+Math.random()*10}px;animation-duration:${(2.5+Math.random()*3).toFixed(2)}s;animation-delay:${(Math.random()*3).toFixed(2)}s;opacity:${(.5+Math.random()*.38).toFixed(2)}`;
+    row.appendChild(k);
+  }
+})();
+
+/* ── Ambient bubbles ── */
+function spawnBubble(){
+  const cont=document.getElementById('ocean-layers');
+  const b=document.createElement('div');b.className='bbl';
+  const sz=3+Math.random()*13;
+  b.style.cssText=`left:${Math.random()*100}%;width:${sz}px;height:${sz}px;animation-duration:${12+Math.random()*18}s`;
+  cont.appendChild(b);setTimeout(()=>b.remove(),(27+Math.random()*14)*1000);
+}
+for(let i=0;i<16;i++)setTimeout(spawnBubble,i*520);
+setInterval(spawnBubble,2000);
+
+/* ── Init ── */
+initShoe();updateHUD();updateBtns();refreshStats();
+document.getElementById('panel-hint').textContent='Drop a pearl to dive.';
+if(window.innerWidth>=900)document.getElementById('side-panel').classList.add('open');
+</script>
+</body>
+</html>
