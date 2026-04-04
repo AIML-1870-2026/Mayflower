@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drug Safety Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg: #f0f5fa;
+  --surface: #ffffff;
+  --surface2: #e8f0f8;
+  --border: #c8d8ea;
+  --border-light: #dde9f5;
+  --accent: #1565c0;
+  --accent2: #0288d1;
+  --accent-light: #e3f0ff;
+  --warn: #e65100;
+  --danger: #c62828;
+  --danger-light: #ffebee;
+  --success: #2e7d32;
+  --text: #1a2e44;
+  --text-dim: #5a7a96;
+  --text-bright: #0d1f33;
+  --mono: 'DM Mono', monospace;
+  --display: 'Syne', sans-serif;
+  --body: 'DM Sans', sans-serif;
+  --shadow: 0 2px 12px rgba(21,101,192,0.08);
+  --shadow-md: 0 4px 20px rgba(21,101,192,0.13);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(21,101,192,0.05) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Header ── */
+header {
+  position: relative;
+  z-index: 10;
+  height: 62px;
+  padding: 0 40px;
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 8px rgba(21,101,192,0.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.logo { display: flex; align-items: center; gap: 12px; }
+
+.logo-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, #1565c0, #0288d1);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+  box-shadow: 0 2px 8px rgba(21,101,192,0.28);
+}
+
+.logo-text { font-family: var(--display); font-size: 1.1rem; font-weight: 700; color: var(--text-bright); }
+.logo-text span { color: var(--accent); }
+
+.header-right { display: flex; align-items: center; gap: 12px; }
+
+.header-badge {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  color: var(--accent2);
+  border: 1px solid rgba(2,136,209,0.35);
+  background: rgba(2,136,209,0.06);
+  padding: 4px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+/* ── Disclaimer bar ── */
+.disclaimer {
+  position: relative;
+  z-index: 9;
+  background: #fffde7;
+  border-bottom: 1px solid #ffe082;
+  padding: 9px 40px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.72rem;
+  color: #5d4037;
+  line-height: 1.55;
+  flex-shrink: 0;
+}
+
+.disclaimer strong { color: #4e342e; }
+
+/* ── Main ── */
+main {
+  position: relative;
+  z-index: 5;
+  flex: 1;
+  max-width: 1360px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 30px 40px 48px;
+}
+
+/* ── Section label ── */
+.section-label {
+  font-family: var(--display);
+  font-size: 0.63rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ── Mode tabs ── */
+.mode-tabs {
+  display: flex;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 4px;
+  margin-bottom: 26px;
+  width: fit-content;
+  box-shadow: var(--shadow);
+}
+
+.mode-tab {
+  font-family: var(--display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 9px 20px;
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  border-radius: 7px;
+  transition: all 0.16s;
+}
+.mode-tab.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(21,101,192,0.28); }
+.mode-tab:hover:not(.active) { color: var(--accent); background: var(--accent-light); }
+
+/* ── Class intro ── */
+.class-intro {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 18px 22px;
+  margin-bottom: 18px;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+.class-intro-icon { font-size: 1.5rem; flex-shrink: 0; }
+.class-intro h3 { font-family: var(--display); font-size: 0.9rem; font-weight: 700; color: var(--text-bright); margin-bottom: 4px; }
+.class-intro p { font-size: 0.76rem; color: var(--text-dim); line-height: 1.55; }
+
+/* ── Class grid ── */
+.class-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 11px;
+  margin-bottom: 22px;
+}
+
+.class-card {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 11px;
+  padding: 17px 15px;
+  cursor: pointer;
+  transition: all 0.17s;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.class-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--card-color, var(--accent));
+  opacity: 0;
+  transition: opacity 0.17s;
+}
+.class-card:hover { border-color: var(--accent2); transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.class-card:hover::after, .class-card.active::after { opacity: 1; }
+.class-card.active { border-color: var(--accent); background: var(--accent-light); box-shadow: var(--shadow-md); }
+
+.class-card-icon { font-size: 1.7rem; margin-bottom: 9px; }
+.class-card-name { font-family: var(--display); font-weight: 700; font-size: 0.9rem; color: var(--text-bright); margin-bottom: 4px; }
+.class-card-desc { font-size: 0.67rem; color: var(--text-dim); line-height: 1.44; margin-bottom: 9px; }
+.class-drugs-list {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  color: var(--accent2);
+  border-top: 1px solid var(--border-light);
+  padding-top: 8px;
+}
+
+/* ── Class overview panel ── */
+.class-overview {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+.class-overview-title {
+  font-family: var(--display);
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+.class-overview-sub { font-size: 0.73rem; color: var(--text-dim); margin-bottom: 16px; line-height: 1.5; }
+.class-overview-loading { text-align: center; padding: 30px; color: var(--text-dim); font-size: 0.75rem; font-family: var(--mono); }
+.class-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+@media (max-width: 860px) { .class-overview-grid { grid-template-columns: repeat(3,1fr); } }
+
+.overview-drug-stat {
+  background: var(--surface2);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 12px 10px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.overview-drug-stat:hover { border-color: var(--accent2); background: var(--accent-light); transform: translateY(-1px); }
+.overview-drug-stat.ov-selected-1 { border-color: var(--accent); background: #dbeafe; }
+.overview-drug-stat.ov-selected-2 { border-color: var(--accent2); background: #e0f2fe; }
+
+.ov-drug-name { font-family: var(--mono); font-size: 0.68rem; color: var(--text-dim); margin-bottom: 6px; text-transform: capitalize; }
+.ov-drug-total { font-family: var(--mono); font-size: 1.15rem; font-weight: 500; color: var(--text-bright); display: block; margin-bottom: 2px; }
+.ov-drug-label { font-size: 0.58rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+.ov-drug-serious { font-family: var(--mono); font-size: 0.72rem; color: var(--warn); margin-top: 4px; }
+
+.ov-chart-wrap { margin-bottom: 6px; }
+.ov-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-light);
+}
+.ov-hint { font-size: 0.71rem; color: var(--text-dim); font-style: italic; }
+
+/* ── Drug picker ── */
+.drug-selector {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  padding: 17px 20px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+}
+.drug-selector-title { font-family: var(--display); font-size: 0.77rem; font-weight: 700; color: var(--text-bright); margin-bottom: 11px; }
+.drug-pills { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 11px; }
+
+.drug-pill {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  padding: 6px 13px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--bg);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: all 0.14s;
+}
+.drug-pill:hover { border-color: var(--accent2); color: var(--accent2); background: var(--accent-light); }
+.drug-pill.selected-1 { background: #dbeafe; border-color: var(--accent); color: var(--accent); font-weight: 500; }
+.drug-pill.selected-2 { background: #e0f2fe; border-color: var(--accent2); color: var(--accent2); font-weight: 500; }
+.compare-hint { font-size: 0.71rem; color: var(--text-dim); font-style: italic; }
+
+/* ── Search row ── */
+.search-row { display: flex; gap: 10px; margin-bottom: 22px; }
+
+.search-input {
+  flex: 1;
+  background: var(--surface);
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  color: var(--text-bright);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  outline: none;
+  transition: border-color 0.17s, box-shadow 0.17s;
+  box-shadow: var(--shadow);
+}
+.search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(21,101,192,0.1); }
+.search-input::placeholder { color: var(--text-dim); }
+
+/* ── Buttons ── */
+.btn {
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 0.79rem;
+  padding: 10px 22px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.14s;
+}
+.btn-primary { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(21,101,192,0.22); }
+.btn-primary:hover { background: #1976d2; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(21,101,192,0.28); }
+.btn-primary:disabled { opacity: 0.33; cursor: not-allowed; transform: none; box-shadow: none; }
+.btn-secondary { background: var(--surface); border: 1.5px solid var(--border); color: var(--text); }
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+/* ── Insight box ── */
+.insight-box {
+  background: #e8f4fd;
+  border: 1px solid #90caf9;
+  border-left: 4px solid var(--accent2);
+  border-radius: 8px;
+  padding: 13px 17px;
+  margin-bottom: 18px;
+  font-size: 0.78rem;
+  color: var(--text);
+  line-height: 1.6;
+}
+.insight-box strong { color: var(--accent); }
+
+/* ── Results grid ── */
+.results-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px;
+  margin-bottom: 20px;
+}
+.results-grid.single { grid-template-columns: 1fr; }
+@media (max-width: 860px) { .results-grid { grid-template-columns: 1fr; } }
+
+/* ── Drug Panel ── */
+.drug-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.drug-panel-header {
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+.color-1 { background: linear-gradient(90deg,#e3f0ff,#f7faff); border-left: 4px solid var(--accent); }
+.color-2 { background: linear-gradient(90deg,#e1f5fe,#f7faff); border-left: 4px solid var(--accent2); }
+
+.drug-panel-name { font-family: var(--display); font-weight: 800; font-size: 0.98rem; color: var(--text-bright); text-transform: uppercase; letter-spacing: 0.04em; }
+.drug-panel-sub { font-family: var(--mono); font-size: 0.58rem; color: var(--text-dim); letter-spacing: 0.05em; margin-top: 2px; }
+.drug-panel-body { padding: 18px 20px; }
+
+/* ── Stats ── */
+.stats-row { display: flex; gap: 9px; margin-bottom: 20px; flex-wrap: wrap; }
+.stat-box {
+  background: var(--surface2);
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  padding: 11px 13px;
+  flex: 1;
+  min-width: 85px;
+  text-align: center;
+}
+.stat-val { font-family: var(--mono); font-size: 1.28rem; font-weight: 500; color: var(--text-bright); display: block; line-height: 1; margin-bottom: 5px; }
+.stat-val.danger { color: var(--danger); }
+.stat-val.warn { color: var(--warn); }
+.stat-label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.07em; display: flex; align-items: center; justify-content: center; gap: 4px; }
+
+/* ── Charts ── */
+.chart-wrap { margin-bottom: 20px; }
+.chart-title { font-family: var(--display); font-size: 0.66rem; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 9px; display: flex; align-items: center; gap: 6px; }
+canvas { max-height: 225px; }
+
+/* ── Severity bars ── */
+.severity-row { display: flex; flex-direction: column; gap: 8px; }
+.sev-item { display: flex; align-items: center; gap: 10px; }
+.sev-label { width: 130px; flex-shrink: 0; color: var(--text-dim); font-family: var(--mono); font-size: 0.64rem; }
+.sev-bar-wrap { flex: 1; background: var(--surface2); border-radius: 3px; height: 8px; overflow: hidden; border: 1px solid var(--border-light); }
+.sev-bar { height: 100%; border-radius: 3px; transition: width 0.9s ease; }
+.sev-count { font-family: var(--mono); font-size: 0.63rem; color: var(--text-dim); width: 52px; text-align: right; flex-shrink: 0; }
+
+/* ── Recalls ── */
+.recall-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 22px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow);
+}
+.recall-drug-block { margin-bottom: 18px; }
+.recall-drug-block:last-child { margin-bottom: 0; }
+.recall-drug-header { font-family: var(--display); font-size: 0.8rem; font-weight: 700; color: var(--text-bright); margin-bottom: 9px; padding-bottom: 7px; border-bottom: 1px solid var(--border-light); }
+
+.recall-item {
+  border: 1px solid var(--border-light);
+  border-left: 4px solid var(--warn);
+  border-radius: 7px;
+  padding: 11px 14px;
+  margin-bottom: 8px;
+  font-size: 0.76rem;
+}
+.recall-item:last-child { margin-bottom: 0; }
+.recall-item.class-1 { border-left-color: var(--danger); background: #fff5f5; }
+.recall-item.class-2 { border-left-color: var(--warn); background: #fffaf5; }
+.recall-item.class-3 { border-left-color: var(--accent2); background: #f0f9ff; }
+
+.recall-date { font-family: var(--mono); font-size: 0.61rem; color: var(--text-dim); margin-bottom: 4px; }
+.recall-reason { color: var(--text); line-height: 1.5; }
+.recall-class-badge { display: inline-block; font-family: var(--mono); font-size: 0.57rem; padding: 2px 7px; border-radius: 4px; margin-top: 6px; font-weight: 500; }
+.badge-1 { background: rgba(198,40,40,0.1); color: var(--danger); border: 1px solid rgba(198,40,40,0.2); }
+.badge-2 { background: rgba(230,81,0,0.09); color: var(--warn); border: 1px solid rgba(230,81,0,0.2); }
+.badge-3 { background: rgba(2,136,209,0.1); color: #0277bd; border: 1px solid rgba(2,136,209,0.2); }
+.no-recalls { font-size: 0.76rem; color: var(--success); padding: 8px 0; display: flex; align-items: center; gap: 6px; }
+
+/* ── Loading / Error ── */
+.loading { text-align: center; padding: 50px 20px; color: var(--text-dim); font-family: var(--mono); font-size: 0.77rem; }
+.spinner { width: 28px; height: 28px; border: 2.5px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.72s linear infinite; margin: 0 auto 13px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-dots::after { content: ''; animation: dots 1.4s steps(4,end) infinite; }
+@keyframes dots { 0%,20%{content:''} 40%{content:'.'} 60%{content:'..'} 80%,100%{content:'...'} }
+.error-msg { background: var(--danger-light); border: 1px solid rgba(198,40,40,0.22); border-radius: 8px; padding: 13px 17px; color: var(--danger); font-size: 0.78rem; margin: 14px 0; line-height: 1.5; }
+
+/* ── Help button ── */
+.help-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 15px; height: 15px;
+  border-radius: 50%;
+  border: 1.5px solid var(--text-dim);
+  background: transparent;
+  color: var(--text-dim);
+  font-size: 0.57rem; font-weight: 700;
+  cursor: pointer;
+  transition: all 0.14s;
+  flex-shrink: 0; line-height: 1;
+}
+.help-btn:hover { border-color: var(--accent2); color: var(--accent2); background: var(--accent-light); }
+
+/* ── Modal ── */
+.modal-backdrop {
+  position: fixed; inset: 0;
+  background: rgba(13,31,51,0.38);
+  backdrop-filter: blur(3px);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.18s;
+}
+.modal-backdrop.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 24px 26px;
+  max-width: 450px; width: 100%;
+  box-shadow: 0 16px 50px rgba(13,31,51,0.18);
+  transform: translateY(8px);
+  transition: transform 0.18s;
+}
+.modal-backdrop.open .modal { transform: translateY(0); }
+.modal-title { font-family: var(--display); font-size: 1rem; font-weight: 700; color: var(--text-bright); margin-bottom: 12px; display: flex; align-items: center; gap: 10px; padding-bottom: 11px; border-bottom: 1px solid var(--border-light); }
+.modal-body { font-size: 0.79rem; color: var(--text); line-height: 1.7; padding-top: 4px; }
+.modal-body p { margin-bottom: 9px; }
+.modal-body p:last-child { margin-bottom: 0; }
+.modal-body strong { color: var(--accent); }
+.modal-close { margin-top: 17px; display: block; width: 100%; }
+
+/* ── Footer ── */
+footer {
+  position: relative;
+  z-index: 5;
+  background: #fff;
+  border-top: 1px solid var(--border);
+  padding: 16px 40px;
+  font-size: 0.69rem;
+  color: var(--text-dim);
+  line-height: 1.6;
+  flex-shrink: 0;
+}
+footer strong { color: var(--text); }
+footer a { color: var(--accent2); text-decoration: none; }
+footer a:hover { text-decoration: underline; }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ── -->
+<header>
+  <div class="logo">
+    <div class="logo-icon">🔬</div>
+    <div class="logo-text">Drug Safety <span>Explorer</span></div>
+  </div>
+  <div class="header-right">
+    <span class="header-badge">Live FDA Data</span>
+  </div>
+</header>
+
+<!-- ── Disclaimer ── -->
+<div class="disclaimer">
+  <span style="font-size:0.9rem;flex-shrink:0;margin-top:1px">⚠️</span>
+  <span><strong>For educational use only.</strong> This tool is not medical advice and should not be used to make health or treatment decisions. Always consult a qualified healthcare professional. Adverse event reports do not imply causation.</span>
+</div>
+
+<!-- ── Main ── -->
+<main>
+  <div class="section-label">Exploration Mode</div>
+  <div class="mode-tabs">
+    <button class="mode-tab active" onclick="setMode('class')">🧬 Drug Class Explorer</button>
+    <button class="mode-tab" onclick="setMode('compare')">⚖️ Compare Two Drugs</button>
+    <button class="mode-tab" onclick="setMode('search')">🔍 Custom Search</button>
+  </div>
+
+  <!-- Drug Class Explorer -->
+  <div id="mode-class">
+    <div class="class-intro">
+      <span class="class-intro-icon">🧬</span>
+      <div>
+        <h3>Explore by drug class</h3>
+        <p>Drug classes group medications that work in similar ways. Select a class to instantly see a <strong>live safety snapshot</strong> of all drugs in that class — total adverse event reports and serious outcomes — pulled in real time from the FDA. Then pick any one or two drugs to dive deeper into their full safety profile side-by-side.</p>
+      </div>
+    </div>
+
+    <div class="section-label">Select a Drug Class</div>
+    <div class="class-grid" id="class-grid"></div>
+
+    <div id="class-overview-area"></div>
+
+    <div id="class-drug-picker" style="display:none;">
+      <div class="drug-selector">
+        <div class="drug-selector-title" id="class-picker-title">Select 1 or 2 drugs to explore in depth</div>
+        <div class="drug-pills" id="class-pills"></div>
+        <div class="compare-hint" id="class-hint">Click a drug to explore it. Pick a second to compare side-by-side.</div>
+      </div>
+      <button class="btn btn-primary" id="class-explore-btn" onclick="exploreClassDrugs()" disabled>Explore Selected →</button>
+    </div>
+  </div>
+
+  <!-- Compare Two Drugs -->
+  <div id="mode-compare" style="display:none;">
+    <div class="section-label">Compare Any Two Drugs</div>
+    <div class="search-row">
+      <input class="search-input" id="drug1-input" placeholder="Drug 1 — e.g. atorvastatin" />
+      <input class="search-input" id="drug2-input" placeholder="Drug 2 — e.g. rosuvastatin" />
+      <button class="btn btn-primary" onclick="compareDrugs()">Compare →</button>
+    </div>
+  </div>
+
+  <!-- Custom Search -->
+  <div id="mode-search" style="display:none;">
+    <div class="section-label">Search Any Drug</div>
+    <div class="search-row">
+      <input class="search-input" id="search-input" placeholder="Enter a drug name — e.g. metformin, lisinopril, sertraline" />
+      <button class="btn btn-primary" onclick="searchDrug()">Search →</button>
+    </div>
+  </div>
+
+  <div id="results-area"></div>
+</main>
+
+<!-- ── Footer with required attribution ── -->
+<footer>
+  <strong>Data Attribution:</strong> This product uses publicly available data from the U.S. Food and Drug Administration (FDA). FDA is not responsible for the product and does not endorse or recommend this or any other product.
+  Data sourced from <a href="https://open.fda.gov" target="_blank">OpenFDA</a> — Drug Adverse Events (FAERS), Drug Enforcement (Recalls), and Drug Labeling endpoints.
+  Report counts are raw totals and do not imply causation or relative risk.
+</footer>
+
+<!-- ── Help Modal ── -->
+<div class="modal-backdrop" id="help-modal" onclick="closeModal(event)">
+  <div class="modal">
+    <div class="modal-title">
+      <span id="modal-icon">ℹ️</span>
+      <span id="modal-title-text">Help</span>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <button class="btn btn-secondary modal-close" onclick="closeHelpModal()">Got it</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+//  DRUG CLASS DATA
+// ══════════════════════════════════════
+const DRUG_CLASSES = [
+  { id:'ssri',   name:'SSRIs',         icon:'🧠', desc:'Selective Serotonin Reuptake Inhibitors — antidepressants',       color:'#7c3aed', drugs:['sertraline','fluoxetine','escitalopram','paroxetine','citalopram'] },
+  { id:'statin', name:'Statins',        icon:'❤️', desc:'Cholesterol-lowering (HMG-CoA reductase inhibitors)',            color:'#dc2626', drugs:['atorvastatin','rosuvastatin','simvastatin','pravastatin','lovastatin'] },
+  { id:'ace',    name:'ACE Inhibitors', icon:'🩸', desc:'Blood pressure medications that relax blood vessels',            color:'#059669', drugs:['lisinopril','enalapril','ramipril','captopril','benazepril'] },
+  { id:'nsaid',  name:'NSAIDs',         icon:'💊', desc:'Non-steroidal anti-inflammatory drugs for pain & inflammation',  color:'#d97706', drugs:['ibuprofen','naproxen','celecoxib','diclofenac','meloxicam'] },
+  { id:'ppi',    name:'PPIs',           icon:'🫁', desc:'Proton Pump Inhibitors — reduce stomach acid production',       color:'#0284c7', drugs:['omeprazole','pantoprazole','esomeprazole','lansoprazole','rabeprazole'] },
+  { id:'arb',    name:'ARBs',           icon:'💉', desc:'Angiotensin Receptor Blockers — blood pressure medications',    color:'#db2777', drugs:['losartan','valsartan','olmesartan','irbesartan','candesartan'] },
+];
+
+const FDA = 'https://api.fda.gov';
+let selectedClass = null;
+let selectedDrugs = [];
+let chartInstances = {};
+let ovSelectedDrugs = [];
+
+// ══════════════════════════════════════
+//  MODE SWITCHING
+// ══════════════════════════════════════
+function setMode(mode) {
+  document.querySelectorAll('.mode-tab').forEach((t, i) => {
+    t.classList.toggle('active', ['class','compare','search'][i] === mode);
+  });
+  ['class','compare','search'].forEach(m => {
+    document.getElementById('mode-' + m).style.display = m === mode ? '' : 'none';
+  });
+  document.getElementById('results-area').innerHTML = '';
+}
+
+// ══════════════════════════════════════
+//  CLASS GRID
+// ══════════════════════════════════════
+function initClassGrid() {
+  document.getElementById('class-grid').innerHTML = DRUG_CLASSES.map(c => `
+    <div class="class-card" id="cc-${c.id}" style="--card-color:${c.color}" onclick="selectClass('${c.id}')">
+      <div class="class-card-icon">${c.icon}</div>
+      <div class="class-card-name">${c.name}</div>
+      <div class="class-card-desc">${c.desc}</div>
+      <div class="class-drugs-list">${c.drugs.join(' · ')}</div>
+    </div>
+  `).join('');
+}
+
+// ══════════════════════════════════════
+//  CLASS SELECTION + OVERVIEW
+// ══════════════════════════════════════
+async function selectClass(id) {
+  selectedClass = DRUG_CLASSES.find(c => c.id === id);
+  selectedDrugs = [];
+  ovSelectedDrugs = [];
+
+  document.querySelectorAll('.class-card').forEach(el => el.classList.remove('active'));
+  document.getElementById('cc-' + id).classList.add('active');
+  document.getElementById('results-area').innerHTML = '';
+  document.getElementById('class-drug-picker').style.display = 'none';
+
+  // Show loading overview
+  const ovArea = document.getElementById('class-overview-area');
+  ovArea.innerHTML = `
+    <div class="class-overview">
+      <div class="class-overview-title">${selectedClass.icon} ${selectedClass.name} — Class Overview</div>
+      <div class="class-overview-sub">Loading live FDA data for all ${selectedClass.name} in this class…</div>
+      <div class="class-overview-loading"><div class="spinner" style="margin-bottom:10px"></div><span class="loading-dots">Fetching report totals</span></div>
+    </div>`;
+
+  // Fetch totals for all drugs in the class in parallel
+  const classData = await Promise.all(selectedClass.drugs.map(async d => {
+    const [total, serious] = await Promise.all([
+      fetchTotal(d),
+      fetchSeriousCount(d),
+    ]);
+    return { name: d, total, serious };
+  }));
+
+  renderClassOverview(classData);
+}
+
+async function fetchSeriousCount(drug) {
+  try {
+    const r = await fetch(`${FDA}/drug/event.json?search=patient.drug.medicinalproduct:"${encodeURIComponent(drug)}"+AND+serious:1&limit=1`);
+    if (!r.ok) return 0;
+    return (await r.json()).meta?.results?.total || 0;
+  } catch { return 0; }
+}
+
+function renderClassOverview(classData) {
+  destroyCharts();
+  const ovArea = document.getElementById('class-overview-area');
+  const maxTotal = Math.max(...classData.map(d => d.total), 1);
+
+  // Sort by total descending for the chart
+  const sorted = [...classData].sort((a,b) => b.total - a.total);
+
+  // Build stat cards
+  const cards = classData.map((d, i) => `
+    <div class="overview-drug-stat" id="ovcard-${d.name}" onclick="toggleOvDrug('${d.name}')">
+      <div class="ov-drug-name">${d.name}</div>
+      <span class="ov-drug-total">${d.total ? d.total.toLocaleString() : '—'}</span>
+      <div class="ov-drug-label">FAERS Reports</div>
+      ${d.serious ? `<div class="ov-drug-serious">⚠ ${d.serious.toLocaleString()} serious</div>` : ''}
+    </div>`).join('');
+
+  ovArea.innerHTML = `
+    <div class="class-overview">
+      <div class="class-overview-title">${selectedClass.icon} ${selectedClass.name} — Live Class Safety Overview <button class="help-btn" onclick="showHelp('classOverview')">?</button></div>
+      <div class="class-overview-sub">Total FDA adverse event reports per drug in this class, fetched live from OpenFDA. Click any drug card or the chart bars to select drugs for in-depth comparison.</div>
+      <div class="ov-chart-wrap">
+        <canvas id="ov-chart" height="110"></canvas>
+      </div>
+      <div class="class-overview-grid">${cards}</div>
+      <div class="ov-actions">
+        <span class="ov-hint" id="ov-hint">Click a drug above to select it for in-depth exploration. Select two to compare.</span>
+        <button class="btn btn-primary" id="ov-explore-btn" onclick="launchOvExplore()" disabled style="margin-left:auto">Explore Selected →</button>
+      </div>
+    </div>`;
+
+  // Render the class overview bar chart
+  const ctx = document.getElementById('ov-chart');
+  if (ctx) {
+    chartInstances['ov'] = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: sorted.map(d => d.name),
+        datasets: [
+          {
+            label: 'Total Reports',
+            data: sorted.map(d => d.total),
+            backgroundColor: sorted.map(d => `rgba(21,101,192,0.75)`),
+            borderColor: sorted.map(d => `rgba(21,101,192,1)`),
+            borderWidth: 1,
+            borderRadius: 4,
+            yAxisID: 'y',
+          },
+          {
+            label: 'Serious Reports',
+            data: sorted.map(d => d.serious),
+            backgroundColor: sorted.map(d => `rgba(230,81,0,0.65)`),
+            borderColor: sorted.map(d => `rgba(230,81,0,1)`),
+            borderWidth: 1,
+            borderRadius: 4,
+            yAxisID: 'y',
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        onClick: (evt, elements) => {
+          if (elements.length > 0) {
+            const idx = elements[0].index;
+            toggleOvDrug(sorted[idx].name);
+          }
+        },
+        plugins: {
+          legend: {
+            display: true,
+            labels: { color: '#5a7a96', font: { family: 'DM Sans', size: 11 }, boxWidth: 12, padding: 16 }
+          },
+          tooltip: {
+            backgroundColor: '#fff', borderColor: '#c8d8ea', borderWidth: 1,
+            titleColor: '#0d1f33', bodyColor: '#5a7a96',
+            callbacks: {
+              label: ctx => ` ${ctx.dataset.label}: ${ctx.raw.toLocaleString()}`
+            }
+          }
+        },
+        scales: {
+          y: { grid: { color: 'rgba(200,216,234,0.6)' }, ticks: { color: '#5a7a96', font: { family: 'DM Mono', size: 10 } } },
+          x: { grid: { display: false }, ticks: { color: '#1a2e44', font: { family: 'DM Sans', size: 11 } } }
+        }
+      }
+    });
+  }
+
+  // Show drug picker below
+  document.getElementById('class-picker-title').textContent = `${selectedClass.name} — select 1 or 2 drugs to explore in depth`;
+  document.getElementById('class-pills').innerHTML = selectedClass.drugs.map(d =>
+    `<button class="drug-pill" id="pill-${d}" onclick="toggleClassDrug('${d}')">${d}</button>`
+  ).join('');
+  document.getElementById('class-hint').textContent = 'Click a drug to explore it. Pick a second to compare side-by-side.';
+  document.getElementById('class-explore-btn').disabled = true;
+  document.getElementById('class-drug-picker').style.display = '';
+}
+
+function toggleOvDrug(name) {
+  if (ovSelectedDrugs.includes(name)) {
+    ovSelectedDrugs = ovSelectedDrugs.filter(d => d !== name);
+  } else if (ovSelectedDrugs.length < 2) {
+    ovSelectedDrugs.push(name);
+  } else {
+    ovSelectedDrugs[1] = name;
+  }
+  // Sync with pill selector
+  selectedDrugs = [...ovSelectedDrugs];
+  selectedClass.drugs.forEach(d => {
+    const card = document.getElementById('ovcard-' + d);
+    const pill = document.getElementById('pill-' + d);
+    if (card) { card.className = 'overview-drug-stat'; }
+    if (pill) { pill.className = 'drug-pill'; }
+    if (ovSelectedDrugs[0] === d) {
+      if (card) card.className += ' ov-selected-1';
+      if (pill) pill.className += ' selected-1';
+    }
+    if (ovSelectedDrugs[1] === d) {
+      if (card) card.className += ' ov-selected-2';
+      if (pill) pill.className += ' selected-2';
+    }
+  });
+  const hint = document.getElementById('ov-hint');
+  const btn = document.getElementById('ov-explore-btn');
+  const chint = document.getElementById('class-hint');
+  const cbtn = document.getElementById('class-explore-btn');
+  if (ovSelectedDrugs.length === 2) {
+    if (hint) hint.textContent = `Comparing ${ovSelectedDrugs[0]} vs ${ovSelectedDrugs[1]} — click Explore!`;
+    if (chint) chint.textContent = `Comparing ${ovSelectedDrugs[0]} vs ${ovSelectedDrugs[1]}. Click Explore!`;
+  } else if (ovSelectedDrugs.length === 1) {
+    if (hint) hint.textContent = `${ovSelectedDrugs[0]} selected. Pick a second to compare, or click Explore.`;
+    if (chint) chint.textContent = `${ovSelectedDrugs[0]} selected. Pick a second to compare, or click Explore.`;
+  } else {
+    if (hint) hint.textContent = 'Click a drug to select it for in-depth exploration.';
+    if (chint) chint.textContent = 'Click a drug to explore it. Pick a second to compare side-by-side.';
+  }
+  if (btn) btn.disabled = ovSelectedDrugs.length === 0;
+  if (cbtn) cbtn.disabled = selectedDrugs.length === 0;
+}
+
+function toggleClassDrug(name) {
+  toggleOvDrug(name);
+}
+
+function launchOvExplore() {
+  if (ovSelectedDrugs.length === 0) return;
+  fetchAndRender(ovSelectedDrugs[0], ovSelectedDrugs[1] || null);
+}
+
+function exploreClassDrugs() {
+  if (selectedDrugs.length === 0) return;
+  fetchAndRender(selectedDrugs[0], selectedDrugs[1] || null);
+}
+
+function compareDrugs() {
+  const d1 = document.getElementById('drug1-input').value.trim();
+  const d2 = document.getElementById('drug2-input').value.trim();
+  if (!d1) return;
+  fetchAndRender(d1, d2 || null);
+}
+
+function searchDrug() {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  fetchAndRender(q, null);
+}
+
+// ══════════════════════════════════════
+//  API
+// ══════════════════════════════════════
+async function fetchADEs(drug) {
+  const tryUrl = async (field) => {
+    const r = await fetch(`${FDA}/drug/event.json?search=${field}:"${encodeURIComponent(drug)}"&count=patient.reaction.reactionmeddrapt.exact&limit=20`);
+    if (!r.ok) return null;
+    return (await r.json()).results || null;
+  };
+  return await tryUrl('patient.drug.medicinalproduct') || await tryUrl('patient.drug.openfda.generic_name') || null;
+}
+
+async function fetchTotal(drug) {
+  try {
+    const r = await fetch(`${FDA}/drug/event.json?search=patient.drug.medicinalproduct:"${encodeURIComponent(drug)}"&limit=1`);
+    if (!r.ok) return 0;
+    return (await r.json()).meta?.results?.total || 0;
+  } catch { return 0; }
+}
+
+async function fetchSeverity(drug) {
+  const keys = [
+    { key:'serious',                    label:'Serious',          color:'#e65100' },
+    { key:'seriousnesshospitalization', label:'Hospitalization',  color:'#f59e0b' },
+    { key:'seriousnesslifethreatening', label:'Life-Threatening', color:'#ef4444' },
+    { key:'seriousnessdisabling',       label:'Disabling',        color:'#8b5cf6' },
+    { key:'seriousnessdeath',           label:'Death',            color:'#c62828' },
+  ];
+  const out = {};
+  await Promise.all(keys.map(async k => {
+    try {
+      const r = await fetch(`${FDA}/drug/event.json?search=patient.drug.medicinalproduct:"${encodeURIComponent(drug)}"+AND+${k.key}:1&limit=1`);
+      out[k.key] = { count: r.ok ? ((await r.json()).meta?.results?.total || 0) : 0, ...k };
+    } catch { out[k.key] = { count: 0, ...k }; }
+  }));
+  return out;
+}
+
+async function fetchTimeline(drug) {
+  try {
+    const r = await fetch(`${FDA}/drug/event.json?search=patient.drug.medicinalproduct:"${encodeURIComponent(drug)}"&count=receivedate&limit=100`);
+    if (!r.ok) return null;
+    return (await r.json()).results || null;
+  } catch { return null; }
+}
+
+async function fetchRecalls(drug) {
+  try {
+    const r = await fetch(`${FDA}/drug/enforcement.json?search=product_description:"${encodeURIComponent(drug)}"&limit=5&sort=recall_initiation_date:desc`);
+    if (!r.ok) return [];
+    return (await r.json()).results || [];
+  } catch { return []; }
+}
+
+// ══════════════════════════════════════
+//  ORCHESTRATE
+// ══════════════════════════════════════
+async function fetchAndRender(drug1, drug2) {
+  // Preserve the overview chart — only destroy drug detail charts
+  destroyDetailCharts();
+  const area = document.getElementById('results-area');
+  area.innerHTML = `<div class="loading"><div class="spinner"></div><span class="loading-dots">Querying OpenFDA live data</span></div>`;
+  area.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  try {
+    const drugs = drug2 ? [drug1, drug2] : [drug1];
+    const dataArr = await Promise.all(drugs.map(async d => ({
+      name: d,
+      reactions: await fetchADEs(d),
+      total:     await fetchTotal(d),
+      severity:  await fetchSeverity(d),
+      timeline:  await fetchTimeline(d),
+      recalls:   await fetchRecalls(d),
+    })));
+    renderResults(dataArr);
+  } catch (e) {
+    area.innerHTML = `<div class="error-msg">⚠️ Error fetching data: ${e.message}. The drug name may not match OpenFDA records, or the API rate limit was reached — try again in a moment.</div>`;
+  }
+}
+
+function destroyDetailCharts() {
+  Object.keys(chartInstances).forEach(k => {
+    if (k !== 'ov') {
+      try { chartInstances[k].destroy(); } catch {}
+      delete chartInstances[k];
+    }
+  });
+}
+
+function destroyCharts() {
+  Object.values(chartInstances).forEach(c => { try { c.destroy(); } catch {} });
+  chartInstances = {};
+}
+
+// ══════════════════════════════════════
+//  RENDER RESULTS
+// ══════════════════════════════════════
+function renderResults(dataArr) {
+  destroyDetailCharts();
+  const area = document.getElementById('results-area');
+  const isSingle = dataArr.length === 1;
+  let html = '';
+
+  // Comparison insight
+  if (!isSingle && dataArr[0].total && dataArr[1].total) {
+    const [a, b] = dataArr;
+    const [big, small] = a.total >= b.total ? [a, b] : [b, a];
+    const ratio = (big.total / Math.max(small.total, 1)).toFixed(1);
+    // Serious rate comparison
+    const aSerious = a.severity?.serious?.count || 0;
+    const bSerious = b.severity?.serious?.count || 0;
+    const aRate = a.total ? ((aSerious / a.total) * 100).toFixed(1) : 0;
+    const bRate = b.total ? ((bSerious / b.total) * 100).toFixed(1) : 0;
+    html += `<div class="insight-box">
+      📊 <strong>Comparison:</strong> <strong>${big.name}</strong> has ${ratio}× more total FAERS reports than <strong>${small.name}</strong>.
+      Serious outcome rate: <strong>${a.name}</strong> ${aRate}% vs <strong>${b.name}</strong> ${bRate}%.
+      Higher report counts often reflect prescribing volume — interpret alongside usage prevalence, not as a direct measure of risk.
+    </div>`;
+  }
+
+  html += `<div class="results-grid ${isSingle ? 'single' : ''}">`;
+  dataArr.forEach((data, idx) => { html += buildPanel(data, idx); });
+  html += `</div>`;
+
+  // Recalls
+  html += `<div class="recall-section"><div class="section-label">Recall History <button class="help-btn" onclick="showHelp('recalls')">?</button></div>`;
+  dataArr.forEach(data => {
+    html += `<div class="recall-drug-block"><div class="recall-drug-header">${data.name.toUpperCase()}</div>`;
+    if (data.recalls?.length) {
+      data.recalls.forEach(r => {
+        const c = r.classification === 'Class I' ? '1' : r.classification === 'Class II' ? '2' : '3';
+        html += `<div class="recall-item class-${c}">
+          <div class="recall-date">📅 ${r.recall_initiation_date || 'Unknown date'} — ${r.recalling_firm || ''}</div>
+          <div class="recall-reason">${r.reason_for_recall || 'No reason on record'}</div>
+          ${r.classification ? `<span class="recall-class-badge badge-${c}">${r.classification}</span>` : ''}
+        </div>`;
+      });
+    } else {
+      html += `<div class="no-recalls">✅ No recent recall records found for ${data.name}</div>`;
+    }
+    html += `</div>`;
+  });
+  html += `</div>`;
+
+  area.innerHTML = html;
+
+  dataArr.forEach((data, idx) => {
+    if (data.reactions?.length) renderReactionChart(data, idx);
+    if (data.timeline?.length)  renderTimelineChart(data, idx);
+    renderSeverityBars(data, idx);
+  });
+}
+
+function buildPanel(data, idx) {
+  const sev = data.severity || {};
+  const deaths  = sev.seriousnessdeath?.count || 0;
+  const hosp    = sev.seriousnesshospitalization?.count || 0;
+  const serious = sev.serious?.count || 0;
+
+  return `
+  <div class="drug-panel">
+    <div class="drug-panel-header color-${idx+1}">
+      <div class="drug-panel-name">${data.name}</div>
+      <div class="drug-panel-sub">OpenFDA · FAERS Database</div>
+    </div>
+    <div class="drug-panel-body">
+      <div class="stats-row">
+        <div class="stat-box">
+          <span class="stat-val">${data.total ? data.total.toLocaleString() : '—'}</span>
+          <div class="stat-label">Total Reports <button class="help-btn" onclick="showHelp('total')">?</button></div>
+        </div>
+        <div class="stat-box">
+          <span class="stat-val ${serious ? 'warn' : ''}">${serious ? serious.toLocaleString() : '—'}</span>
+          <div class="stat-label">Serious <button class="help-btn" onclick="showHelp('serious')">?</button></div>
+        </div>
+        <div class="stat-box">
+          <span class="stat-val ${deaths ? 'danger' : ''}">${deaths ? deaths.toLocaleString() : '—'}</span>
+          <div class="stat-label">Deaths <button class="help-btn" onclick="showHelp('deaths')">?</button></div>
+        </div>
+        <div class="stat-box">
+          <span class="stat-val ${hosp ? 'warn' : ''}">${hosp ? hosp.toLocaleString() : '—'}</span>
+          <div class="stat-label">Hospitalizations</div>
+        </div>
+      </div>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Top Reported Reactions <button class="help-btn" onclick="showHelp('reactions')">?</button></div>
+        <canvas id="reaction-chart-${idx}" height="200"></canvas>
+      </div>
+
+      <div class="chart-wrap">
+        <div class="chart-title">Reporting Timeline <button class="help-btn" onclick="showHelp('timeline')">?</button></div>
+        <canvas id="timeline-chart-${idx}" height="130"></canvas>
+      </div>
+
+      <div class="chart-title" style="margin-bottom:9px">Severity Breakdown <button class="help-btn" onclick="showHelp('severity')">?</button></div>
+      <div class="severity-row" id="sev-bars-${idx}"></div>
+    </div>
+  </div>`;
+}
+
+// ══════════════════════════════════════
+//  CHARTS
+// ══════════════════════════════════════
+function renderReactionChart(data, idx) {
+  const el = document.getElementById(`reaction-chart-${idx}`);
+  if (!el) return;
+  const top = data.reactions.slice(0, 10);
+  const rgb = idx === 0 ? '21,101,192' : '2,136,209';
+
+  chartInstances[`rxn-${idx}`] = new Chart(el, {
+    type: 'bar',
+    data: {
+      labels: top.map(r => r.term.toLowerCase().substring(0, 24)),
+      datasets: [{ data: top.map(r => r.count),
+        backgroundColor: top.map((_, i) => `rgba(${rgb},${0.82 - i*0.055})`),
+        borderColor: `rgba(${rgb},0.9)`,
+        borderWidth: 1, borderRadius: 3 }]
+    },
+    options: {
+      indexAxis: 'y', responsive: true,
+      plugins: { legend:{ display:false }, tooltip:{
+        backgroundColor:'#fff', borderColor:'#c8d8ea', borderWidth:1,
+        titleColor:'#0d1f33', bodyColor:'#5a7a96',
+        callbacks: { label: ctx => ` ${ctx.raw.toLocaleString()} reports` }
+      }},
+      scales: {
+        x: { grid:{ color:'rgba(200,216,234,0.6)' }, ticks:{ color:'#5a7a96', font:{ family:'DM Mono', size:10 } } },
+        y: { grid:{ display:false }, ticks:{ color:'#1a2e44', font:{ family:'DM Sans', size:10 } } }
+      }
+    }
+  });
+}
+
+function renderTimelineChart(data, idx) {
+  const el = document.getElementById(`timeline-chart-${idx}`);
+  if (!el) return;
+  const byYear = {};
+  data.timeline.forEach(item => {
+    const y = String(item.time).substring(0,4);
+    if (y >= '2004' && y <= '2025') byYear[y] = (byYear[y]||0) + item.count;
+  });
+  const years = Object.keys(byYear).sort();
+  const color = idx === 0 ? '#1565c0' : '#0288d1';
+  const fill  = idx === 0 ? 'rgba(21,101,192,0.07)' : 'rgba(2,136,209,0.07)';
+
+  chartInstances[`tl-${idx}`] = new Chart(el, {
+    type: 'line',
+    data: { labels: years, datasets:[{
+      data: years.map(y => byYear[y]),
+      borderColor: color, backgroundColor: fill,
+      borderWidth: 2, pointRadius: 3, pointBackgroundColor: color, fill: true, tension: 0.4
+    }]},
+    options: {
+      responsive: true,
+      plugins: { legend:{ display:false }, tooltip:{
+        backgroundColor:'#fff', borderColor:'#c8d8ea', borderWidth:1,
+        titleColor:'#0d1f33', bodyColor:'#5a7a96',
+        callbacks: { label: ctx => ` ${ctx.raw.toLocaleString()} reports in ${ctx.label}` }
+      }},
+      scales: {
+        x: { grid:{ color:'rgba(200,216,234,0.5)' }, ticks:{ color:'#5a7a96', font:{ family:'DM Mono', size:9 } } },
+        y: { grid:{ color:'rgba(200,216,234,0.5)' }, ticks:{ color:'#5a7a96', font:{ family:'DM Mono', size:9 } } }
+      }
+    }
+  });
+}
+
+function renderSeverityBars(data, idx) {
+  const el = document.getElementById(`sev-bars-${idx}`);
+  if (!el) return;
+  const sev = data.severity || {};
+  const items = [
+    { key:'serious',                    label:'Serious',          color:'#e65100' },
+    { key:'seriousnesshospitalization', label:'Hospitalization',  color:'#f59e0b' },
+    { key:'seriousnesslifethreatening', label:'Life-Threatening', color:'#ef4444' },
+    { key:'seriousnessdisabling',       label:'Disabling',        color:'#8b5cf6' },
+    { key:'seriousnessdeath',           label:'Death',            color:'#c62828' },
+  ];
+  const maxVal = Math.max(...items.map(i => sev[i.key]?.count || 0), 1);
+  el.innerHTML = items.map(item => {
+    const count = sev[item.key]?.count || 0;
+    return `<div class="sev-item">
+      <span class="sev-label">${item.label}</span>
+      <div class="sev-bar-wrap"><div class="sev-bar" style="width:${Math.round(count/maxVal*100)}%;background:${item.color}"></div></div>
+      <span class="sev-count">${count ? count.toLocaleString() : '—'}</span>
+    </div>`;
+  }).join('');
+}
+
+// ══════════════════════════════════════
+//  HELP MODAL
+// ══════════════════════════════════════
+const HELP = {
+  classOverview: { icon:'🧬', title:'Class Safety Overview',
+    body:`<p>This chart and stat cards show <strong>live total adverse event reports</strong> from FDA's FAERS database for every drug in this class, fetched in real time — not cached or hardcoded.</p>
+    <p>The grouped bars show <strong>total reports</strong> (blue) alongside <strong>serious reports</strong> (orange) for a quick cross-class comparison. Click any bar or drug card to select drugs for in-depth exploration.</p>
+    <p><strong>Remember:</strong> higher counts often reflect how widely a drug is prescribed, not that it is inherently more dangerous.</p>` },
+  total: { icon:'📊', title:'Total Adverse Event Reports',
+    body:`<p>The total number of <strong>reports</strong> in FDA's FAERS (FDA Adverse Event Reporting System) mentioning this drug — submitted by patients, doctors, pharmacists, or manufacturers.</p>
+    <p><strong>More reports ≠ more dangerous.</strong> Widely prescribed drugs accumulate more reports naturally. These are raw counts, not incidence rates.</p>` },
+  serious: { icon:'⚠️', title:'Serious Reports',
+    body:`<p>Reports where the FDA classified the adverse event as <strong>"serious"</strong> — meaning it involved death, hospitalization, a life-threatening condition, disability, congenital anomaly, or required intervention to prevent permanent harm.</p>
+    <p>Seriousness is self-reported by the submitter; FDA does not independently verify every case.</p>` },
+  deaths: { icon:'⚰️', title:'Death Reports',
+    body:`<p>Reports where <strong>death</strong> was listed as an outcome. This does <em>not</em> mean the drug caused the death — the patient died while taking the drug, but the cause may be the underlying disease or an unrelated condition.</p>
+    <p>Causation requires rigorous clinical study — not just adverse event counts.</p>` },
+  reactions: { icon:'🔬', title:'Most Common Reactions',
+    body:`<p>The <strong>most frequently reported</strong> events associated with this drug in FAERS, standardised using MedDRA (Medical Dictionary for Regulatory Activities) terminology.</p>
+    <p>Frequency ≠ causation. Some reactions may reflect the disease being treated rather than a drug side effect.</p>` },
+  timeline: { icon:'📅', title:'Reporting Timeline',
+    body:`<p>Reports submitted <strong>per year</strong> for this drug. Trends may reflect increased prescribing, new safety signals, label changes prompting more reporting, or growing awareness of FAERS over time.</p>` },
+  severity: { icon:'🩺', title:'Severity Breakdown',
+    body:`<p>Breaks reports down by outcome category. <strong>Bar lengths are relative to the largest category for this drug</strong> — not directly comparable across drugs.</p>
+    <p>One report can appear in multiple categories (e.g. both hospitalization and death), so counts may overlap.</p>` },
+  recalls: { icon:'🚨', title:'Recall Classifications',
+    body:`<p><strong style="color:#c62828">Class I</strong> — Most serious: may cause serious health consequences or death.<br>
+    <strong style="color:#e65100">Class II</strong> — May cause temporary adverse effects; serious outcomes are unlikely.<br>
+    <strong style="color:#0277bd">Class III</strong> — Unlikely to cause harm, but product violates FDA labeling or manufacturing rules.</p>
+    <p>Most recalls are initiated voluntarily by manufacturers for contamination, mislabeling, or potency issues.</p>` }
+};
+
+function showHelp(key) {
+  const c = HELP[key]; if (!c) return;
+  document.getElementById('modal-icon').textContent = c.icon;
+  document.getElementById('modal-title-text').textContent = c.title;
+  document.getElementById('modal-body').innerHTML = c.body;
+  document.getElementById('help-modal').classList.add('open');
+}
+
+function closeHelpModal() { document.getElementById('help-modal').classList.remove('open'); }
+function closeModal(e) { if (e.target.id === 'help-modal') closeHelpModal(); }
+
+// ══════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════
+initClassGrid();
+</script>
+</body>
+</html>
