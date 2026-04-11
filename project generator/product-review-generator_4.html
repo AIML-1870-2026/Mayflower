@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Product Review Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;700;800&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@300;400&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/marked@4/marked.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0a;
+      --surface: #111111;
+      --surface2: #1a1a1a;
+      --border: #2a2a2a;
+      --border-hi: #3a3a3a;
+      --text: #f0ede8;
+      --muted: #666;
+      --accent: #e8d5a3;
+      --accent-dim: #b8a575;
+      --danger: #c0392b;
+      --danger-bg: #1a0a08;
+      --mono: 'JetBrains Mono', monospace;
+      --display: 'Instrument Serif', Georgia, serif;
+      --ui: 'Syne', sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--ui);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ─── Animated background grid ─── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 60px 60px;
+      opacity: 0.4;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page-wrap {
+      position: relative;
+      z-index: 1;
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 3rem 2rem 6rem;
+    }
+
+    /* ─── Header ─── */
+    header {
+      margin-bottom: 3rem;
+      animation: fadeUp 0.6s ease both;
+    }
+
+    .eyebrow {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--accent-dim);
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .eyebrow::before {
+      content: '';
+      display: block;
+      width: 32px;
+      height: 1px;
+      background: var(--accent-dim);
+    }
+
+    h1 {
+      font-family: var(--display);
+      font-size: clamp(2.8rem, 6vw, 5rem);
+      font-weight: 400;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+
+    h1 em {
+      font-style: italic;
+      color: var(--accent);
+    }
+
+    .subtitle {
+      margin-top: 1rem;
+      font-size: 15px;
+      color: var(--muted);
+      max-width: 44ch;
+      line-height: 1.7;
+    }
+
+    /* ─── Layout ─── */
+    .layout {
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 2px;
+      background: var(--border);
+      border: 1px solid var(--border);
+      animation: fadeUp 0.7s ease 0.1s both;
+    }
+
+    .panel {
+      background: var(--surface);
+      padding: 2rem;
+    }
+
+    .panel-right {
+      background: var(--bg);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── Section labels ─── */
+    .sect-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1rem;
+      padding-bottom: 0.6rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ─── API Key ─── */
+    .field { margin-bottom: 1.2rem; }
+
+    .field label {
+      display: block;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    input[type=text], input[type=password], select, textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--ui);
+      font-size: 14px;
+      padding: 9px 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    input[type=text]:focus, input[type=password]:focus, select:focus, textarea:focus {
+      border-color: var(--accent-dim);
+    }
+
+    input[type=password] { font-family: var(--mono); font-size: 13px; }
+
+    select {
+      appearance: none;
+      cursor: pointer;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23666' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
+    }
+
+    textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+
+    /* ─── Model cards ─── */
+    .model-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      margin-bottom: 1.2rem;
+    }
+
+    .mc {
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      padding: 10px 12px;
+      cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .mc:hover { border-color: var(--border-hi); }
+
+    .mc.sel {
+      border-color: var(--accent-dim);
+      background: #1c1a13;
+    }
+
+    .mc-name {
+      font-family: var(--mono);
+      font-size: 12px;
+      font-weight: 400;
+      color: var(--text);
+      margin-bottom: 2px;
+    }
+
+    .mc.sel .mc-name { color: var(--accent); }
+
+    .mc-desc {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    /* ─── Star / tone row ─── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    /* ─── Generate button ─── */
+    .gen-btn {
+      width: 100%;
+      margin-top: 0.5rem;
+      padding: 13px;
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      font-family: var(--display);
+      font-style: italic;
+      font-size: 18px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+      letter-spacing: 0.01em;
+    }
+
+    .gen-btn:hover { background: var(--text); transform: translateY(-1px); }
+    .gen-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+    /* ─── FTC ─── */
+    .ftc {
+      margin-top: 1.2rem;
+      padding: 10px 12px;
+      border-left: 2px solid var(--danger);
+      background: var(--danger-bg);
+      font-family: var(--mono);
+      font-size: 10px;
+      color: #e07060;
+      line-height: 1.7;
+      letter-spacing: 0.02em;
+    }
+
+    /* ─── Output panel ─── */
+    .out-topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .out-meta {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .copy-btn {
+      font-family: var(--mono);
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: 4px 10px;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+    }
+
+    .copy-btn:hover { border-color: var(--accent-dim); color: var(--accent-dim); }
+
+    /* ─── Empty state ─── */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 3rem;
+      color: var(--border-hi);
+    }
+
+    .empty-icon {
+      width: 48px;
+      height: 48px;
+      border: 1px solid var(--border-hi);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .empty-text {
+      font-family: var(--display);
+      font-style: italic;
+      font-size: 18px;
+      color: var(--border-hi);
+    }
+
+    /* ─── Spinner ─── */
+    .spinner {
+      flex: 1;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .spinner.on { display: flex; }
+
+    .spinner-ring {
+      width: 36px;
+      height: 36px;
+      border: 1.5px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+
+    .spinner-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--muted);
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+
+    /* ─── Review output ─── */
+    .review-wrap {
+      flex: 1;
+      padding: 1.8rem 2rem;
+      overflow-y: auto;
+      display: none;
+    }
+
+    .review-wrap.on { display: block; animation: fadeUp 0.35s ease both; }
+
+    .stars-display { font-size: 20px; margin-bottom: 1rem; color: var(--accent); }
+
+    .review-content h1, .review-content h2 {
+      font-family: var(--display);
+      font-weight: 400;
+      line-height: 1.2;
+      margin: 0 0 1rem;
+      color: var(--text);
+    }
+
+    .review-content h1 { font-size: 1.6rem; }
+    .review-content h2 { font-size: 1.3rem; }
+
+    .review-content h3 {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--accent-dim);
+      margin: 1.5rem 0 0.5rem;
+    }
+
+    .review-content p { font-size: 15px; line-height: 1.75; margin-bottom: 0.9rem; color: var(--text); }
+
+    .review-content ul, .review-content ol {
+      padding-left: 1.4rem;
+      margin-bottom: 0.9rem;
+    }
+
+    .review-content li { font-size: 15px; line-height: 1.65; color: var(--text); margin-bottom: 4px; }
+
+    .review-content strong { color: var(--accent); font-weight: 500; }
+
+    .review-content em { color: var(--muted); font-style: italic; }
+
+    .review-content hr { border: none; border-top: 1px solid var(--border); margin: 1.5rem 0; }
+
+    .review-content blockquote {
+      border-left: 2px solid var(--accent-dim);
+      padding: 0.5rem 1rem;
+      background: var(--surface2);
+      margin: 1rem 0;
+      color: var(--muted);
+      font-style: italic;
+    }
+
+    /* ─── Error ─── */
+    .error-bar {
+      margin: 1rem 1.5rem;
+      padding: 12px 14px;
+      background: var(--danger-bg);
+      border-left: 2px solid var(--danger);
+      font-family: var(--mono);
+      font-size: 12px;
+      color: #e07060;
+      line-height: 1.6;
+      display: none;
+    }
+
+    .error-bar.on { display: block; }
+
+    /* ─── Animations ─── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 720px) {
+      .layout { grid-template-columns: 1fr; }
+      .panel-right { min-height: 400px; }
+      h1 { font-size: 2.4rem; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <header>
+    <div class="eyebrow">Educational tool &mdash; OpenAI</div>
+    <h1>Product<br><em>Review Generator</em></h1>
+    <p class="subtitle">Select a model, describe your product, and let the LLM draft a structured review. For research and learning only.</p>
+  </header>
+
+  <div class="layout">
+
+    <!-- Left panel: form -->
+    <div class="panel">
+
+      <div class="field">
+        <label>OpenAI API Key</label>
+        <input type="password" id="api-key" placeholder="sk-..." autocomplete="off" />
+        <div style="margin-top:6px;display:flex;align-items:center;gap:10px">
+          <label for="env-upload" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--muted);border:1px solid var(--border);padding:4px 10px;background:var(--surface2);margin-bottom:0">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Load .env
+          </label>
+          <input type="file" id="env-upload" accept=".env,.csv,.txt" style="display:none" onchange="loadEnvFile(event)" />
+          <span id="env-status" style="font-family:var(--mono);font-size:10px;color:var(--muted)"></span>
+        </div>
+      </div>
+
+      <p class="sect-label">Model</p>
+      <div class="model-grid" id="model-grid">
+        <div class="mc sel" data-model="gpt-4o">
+          <div class="mc-name">GPT-4o</div>
+          <div class="mc-desc">Flagship &middot; best quality</div>
+        </div>
+        <div class="mc" data-model="gpt-4o-mini">
+          <div class="mc-name">GPT-4o mini</div>
+          <div class="mc-desc">Fast &amp; affordable</div>
+        </div>
+        <div class="mc" data-model="gpt-4-turbo">
+          <div class="mc-name">GPT-4 Turbo</div>
+          <div class="mc-desc">Extended context</div>
+        </div>
+        <div class="mc" data-model="gpt-3.5-turbo">
+          <div class="mc-name">GPT-3.5 Turbo</div>
+          <div class="mc-desc">Lightweight &amp; quick</div>
+        </div>
+      </div>
+
+      <p class="sect-label">Product Details</p>
+
+      <div class="field">
+        <label>Product Name</label>
+        <input type="text" id="prod-name" placeholder="e.g. Sony WH-1000XM5 Headphones" />
+      </div>
+
+      <div class="field">
+        <label>Category</label>
+        <select id="category">
+          <option value="">— Select a category —</option>
+          <option>Electronics &amp; Gadgets</option>
+          <option>Audio &amp; Headphones</option>
+          <option>Home Appliances</option>
+          <option>Kitchen &amp; Cooking</option>
+          <option>Clothing &amp; Apparel</option>
+          <option>Books &amp; Media</option>
+          <option>Sports &amp; Outdoors</option>
+          <option>Beauty &amp; Personal Care</option>
+          <option>Toys &amp; Games</option>
+          <option>Software &amp; Apps</option>
+          <option>Food &amp; Beverages</option>
+          <option>Other</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Key Features / Context <span style="opacity:.5;font-size:10px">(optional)</span></label>
+        <textarea id="features" placeholder="e.g. noise cancelling, 30hr battery, foldable, $349"></textarea>
+      </div>
+
+      <div class="two-col">
+        <div class="field">
+          <label>Star Rating</label>
+          <select id="stars">
+            <option value="5">★★★★★ &mdash; 5 stars</option>
+            <option value="4">★★★★☆ &mdash; 4 stars</option>
+            <option value="3">★★★☆☆ &mdash; 3 stars</option>
+            <option value="2">★★☆☆☆ &mdash; 2 stars</option>
+            <option value="1">★☆☆☆☆ &mdash; 1 star</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Tone</label>
+          <select id="tone">
+            <option>Enthusiastic</option>
+            <option>Professional</option>
+            <option>Skeptical</option>
+            <option>Casual &amp; conversational</option>
+            <option>Technical &amp; detailed</option>
+            <option>Humorous</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="gen-btn" id="gen-btn">Generate Review</button>
+
+      <div class="ftc">
+        ⚠ FTC NOTICE — AI-generated reviews may not be published as genuine consumer reviews. For educational use only. Posting AI reviews as real violates federal rules (up to $51,744/violation).
+      </div>
+
+    </div>
+
+    <!-- Right panel: output -->
+    <div class="panel panel-right">
+
+      <div class="out-topbar">
+        <span class="out-meta" id="out-meta">Awaiting generation</span>
+        <button class="copy-btn" id="copy-btn" style="display:none">Copy</button>
+      </div>
+
+      <div class="error-bar" id="error-bar"></div>
+
+      <!-- Empty -->
+      <div class="empty-state" id="empty-state">
+        <div class="empty-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+          </svg>
+        </div>
+        <span class="empty-text">Your review will appear here</span>
+      </div>
+
+      <!-- Spinner -->
+      <div class="spinner" id="spinner">
+        <div class="spinner-ring"></div>
+        <div class="spinner-label">Composing review&hellip;</div>
+      </div>
+
+      <!-- Review -->
+      <div class="review-wrap" id="review-wrap">
+        <div class="stars-display" id="stars-out"></div>
+        <div class="review-content" id="review-content"></div>
+      </div>
+
+    </div>
+  </div><!-- .layout -->
+
+</div><!-- .page-wrap -->
+
+<script>
+  let selModel = 'gpt-4o';
+
+  // Model selection
+  document.querySelectorAll('.mc').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.mc').forEach(c => c.classList.remove('sel'));
+      card.classList.add('sel');
+      selModel = card.dataset.model;
+    });
+  });
+
+  // Copy button
+  let lastMarkdown = '';
+  const copyBtn = document.getElementById('copy-btn');
+  copyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(lastMarkdown).then(() => {
+      copyBtn.textContent = 'Copied!';
+      setTimeout(() => copyBtn.textContent = 'Copy', 2000);
+    });
+  });
+
+  // Generate
+  document.getElementById('gen-btn').addEventListener('click', generate);
+
+  function loadEnvFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const text = ev.target.result;
+      const match = text.match(/OPENAI_API_KEY\s*[=,]\s*["']?([^\r\n"',]+)["']?/);
+      if (match) {
+        document.getElementById('api-key').value = match[1].trim();
+        document.getElementById('env-status').textContent = '✓ key loaded';
+      } else {
+        document.getElementById('env-status').textContent = '⚠ no OPENAI_API_KEY found';
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  async function generate() {
+    const apiKey   = document.getElementById('api-key').value.trim();
+    const prodName = document.getElementById('prod-name').value.trim();
+    const category = document.getElementById('category').value;
+    const features = document.getElementById('features').value.trim();
+    const stars    = document.getElementById('stars').value;
+    const tone     = document.getElementById('tone').value;
+
+    if (!apiKey)   { showError('Please enter your OpenAI API key.'); return; }
+    if (!prodName) { showError('Please enter a product name.'); return; }
+
+    setState('loading');
+
+    const starsStr = '★'.repeat(+stars) + '☆'.repeat(5 - +stars);
+    const catLine  = category ? `\nCategory: ${category}` : '';
+    const featLine = features ? `\nKey details: ${features}` : '';
+
+    const prompt = `Write a product review for the following:
+
+Product: ${prodName}${catLine}${featLine}
+Rating: ${stars}/5 (${starsStr})
+Tone: ${tone}
+
+Use markdown formatting. Structure the review with:
+- An H2 headline
+- An opening paragraph
+- A "Pros" section (bulleted list)
+- A "Cons" section (bulleted list)
+- A "Verdict" paragraph
+
+Keep it between 280–420 words. Do not mention that this is AI-generated.`;
+
+    try {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + apiKey
+        },
+        body: JSON.stringify({
+          model: selModel,
+          max_tokens: 1000,
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an expert product reviewer who writes compelling, well-structured product reviews in markdown. Be specific, authentic-sounding, and match the requested tone precisely.'
+            },
+            { role: 'user', content: prompt }
+          ]
+        })
+      });
+
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        const msg = e?.error?.message || `HTTP ${res.status}`;
+        if (res.status === 401) throw new Error('Invalid API key. Double-check you copied the full key starting with "sk-".');
+        if (res.status === 429) throw new Error('Rate limit or quota exceeded. Check your OpenAI usage at platform.openai.com/usage.');
+        if (res.status === 404) throw new Error(`Model "${selModel}" not available on your account. Try GPT-4o mini.`);
+        throw new Error(`OpenAI error (${res.status}): ${msg}`);
+      }
+
+      const data = await res.json();
+      const md = data.choices?.[0]?.message?.content || '';
+      if (!md) throw new Error('OpenAI returned an empty response. Try again.');
+
+      lastMarkdown = md;
+      document.getElementById('stars-out').textContent = starsStr;
+      document.getElementById('review-content').innerHTML = marked.parse(md);
+      document.getElementById('out-meta').textContent =
+        `${prodName} · ${selModel} · ${new Date().toLocaleTimeString()}`;
+      copyBtn.style.display = '';
+      setState('result');
+
+    } catch (err) {
+      showError(err.message);
+    }
+  }
+
+  function setState(state) {
+    document.getElementById('gen-btn').disabled = (state === 'loading');
+    document.getElementById('empty-state').style.display  = state === 'idle'    ? 'flex'  : 'none';
+    document.getElementById('spinner').className           = 'spinner' + (state === 'loading' ? ' on' : '');
+    document.getElementById('review-wrap').className       = 'review-wrap' + (state === 'result' ? ' on' : '');
+    if (state !== 'error') document.getElementById('error-bar').className = 'error-bar';
+  }
+
+  function showError(msg) {
+    const bar = document.getElementById('error-bar');
+    bar.textContent = '⚠ ' + msg;
+    bar.className = 'error-bar on';
+    document.getElementById('spinner').className = 'spinner';
+    document.getElementById('empty-state').style.display = 'none';
+    document.getElementById('gen-btn').disabled = false;
+  }
+</script>
+</body>
+</html>
