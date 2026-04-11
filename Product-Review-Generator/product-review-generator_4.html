@@ -222,8 +222,64 @@
       line-height: 1.4;
     }
 
-    /* ─── Star / tone row ─── */
-    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    /* ─── Sliders ─── */
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 0.85rem;
+    }
+    .slider-name {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--text);
+      width: 74px;
+      flex-shrink: 0;
+    }
+    .slider-row input[type=range] {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 2px;
+      background: var(--border-hi);
+      outline: none;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+    }
+    .slider-row input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 13px;
+      height: 13px;
+      background: var(--accent);
+      cursor: pointer;
+    }
+    .slider-row input[type=range]::-moz-range-thumb {
+      width: 13px;
+      height: 13px;
+      background: var(--accent);
+      border: none;
+      border-radius: 0;
+      cursor: pointer;
+    }
+    .slider-val {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--accent-dim);
+      width: 62px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .slider-endpoints {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      padding-left: 84px;
+      margin-top: -0.5rem;
+      margin-bottom: 1rem;
+    }
 
     /* ─── Generate button ─── */
     .gen-btn {
@@ -516,29 +572,44 @@
         <textarea id="features" placeholder="e.g. noise cancelling, 30hr battery, foldable, $349"></textarea>
       </div>
 
-      <div class="two-col">
-        <div class="field">
-          <label>Star Rating</label>
-          <select id="stars">
-            <option value="5">★★★★★ &mdash; 5 stars</option>
-            <option value="4">★★★★☆ &mdash; 4 stars</option>
-            <option value="3">★★★☆☆ &mdash; 3 stars</option>
-            <option value="2">★★☆☆☆ &mdash; 2 stars</option>
-            <option value="1">★☆☆☆☆ &mdash; 1 star</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Tone</label>
-          <select id="tone">
-            <option>Enthusiastic</option>
-            <option>Professional</option>
-            <option>Skeptical</option>
-            <option>Casual &amp; conversational</option>
-            <option>Technical &amp; detailed</option>
-            <option>Humorous</option>
-          </select>
-        </div>
+      <p class="sect-label">Sentiment by Aspect</p>
+
+      <div class="slider-row">
+        <span class="slider-name">Overall</span>
+        <input type="range" id="sent-overall" min="1" max="5" value="4" oninput="updateSlider('sent-overall','sent-overall-val',sentLabels)">
+        <span class="slider-val" id="sent-overall-val">Good</span>
       </div>
+      <div class="slider-row">
+        <span class="slider-name">Value</span>
+        <input type="range" id="sent-value" min="1" max="5" value="3" oninput="updateSlider('sent-value','sent-value-val',sentLabels)">
+        <span class="slider-val" id="sent-value-val">Mixed</span>
+      </div>
+      <div class="slider-row">
+        <span class="slider-name">Features</span>
+        <input type="range" id="sent-features" min="1" max="5" value="4" oninput="updateSlider('sent-features','sent-features-val',sentLabels)">
+        <span class="slider-val" id="sent-features-val">Good</span>
+      </div>
+      <div class="slider-row" style="margin-bottom:1.4rem">
+        <span class="slider-name">Usability</span>
+        <input type="range" id="sent-usability" min="1" max="5" value="4" oninput="updateSlider('sent-usability','sent-usability-val',sentLabels)">
+        <span class="slider-val" id="sent-usability-val">Good</span>
+      </div>
+
+      <p class="sect-label">Tone</p>
+      <div class="slider-row">
+        <span class="slider-name" style="color:var(--muted);font-size:10px">Casual</span>
+        <input type="range" id="tone" min="1" max="5" value="3" oninput="updateSlider('tone','tone-val',toneLabels)">
+        <span class="slider-val" id="tone-val">Balanced</span>
+      </div>
+      <div class="slider-endpoints"><span></span><span>Technical</span></div>
+
+      <p class="sect-label">Length</p>
+      <div class="slider-row">
+        <span class="slider-name" style="color:var(--muted);font-size:10px">Brief</span>
+        <input type="range" id="length" min="1" max="4" value="2" oninput="updateSlider('length','length-val',lengthLabels)">
+        <span class="slider-val" id="length-val">Standard</span>
+      </div>
+      <div class="slider-endpoints"><span></span><span>Long</span></div>
 
       <button class="gen-btn" id="gen-btn">Generate Review</button>
       <button class="gen-btn" id="test-btn" style="margin-top:6px;background:var(--surface2);color:var(--muted);font-size:13px;font-family:var(--mono);font-style:normal;border:1px solid var(--border)">Test API Connection</button>
@@ -589,6 +660,15 @@
 
 <script>
   let selModel = 'gpt-4o';
+
+  const sentLabels  = ['','Negative','Below Avg','Mixed','Good','Excellent'];
+  const toneLabels  = ['','Casual','Friendly','Balanced','Professional','Technical'];
+  const lengthLabels= ['','Brief','Standard','Detailed','Long'];
+  const wordCounts  = ['','100–150','200–280','330–420','480–580'];
+
+  function updateSlider(inputId, valId, labels) {
+    document.getElementById(valId).textContent = labels[document.getElementById(inputId).value];
+  }
 
   // Model selection
   document.querySelectorAll('.mc').forEach(card => {
@@ -659,8 +739,13 @@
     const prodName = document.getElementById('prod-name').value.trim();
     const category = document.getElementById('category').value;
     const features = document.getElementById('features').value.trim();
-    const stars    = document.getElementById('stars').value;
-    const tone     = document.getElementById('tone').value;
+
+    const overallV   = +document.getElementById('sent-overall').value;
+    const valueV     = +document.getElementById('sent-value').value;
+    const featuresV  = +document.getElementById('sent-features').value;
+    const usabilityV = +document.getElementById('sent-usability').value;
+    const toneV      = +document.getElementById('tone').value;
+    const lengthV    = +document.getElementById('length').value;
 
     if (!apiKey)   { showError('Please enter your OpenAI API key.'); return; }
     if (apiKey.startsWith('sk-ant-')) { showError('That looks like an Anthropic key (sk-ant-...). This tool uses OpenAI — please paste your OpenAI key instead (sk-proj-... or sk-...). Get one at platform.openai.com/api-keys.'); return; }
@@ -668,24 +753,31 @@
 
     setState('loading');
 
-    const starsStr = '★'.repeat(+stars) + '☆'.repeat(5 - +stars);
+    const starsStr = '★'.repeat(overallV) + '☆'.repeat(5 - overallV);
     const catLine  = category ? `\nCategory: ${category}` : '';
     const featLine = features ? `\nKey details: ${features}` : '';
 
     const prompt = `Write a product review for the following:
 
 Product: ${prodName}${catLine}${featLine}
-Rating: ${stars}/5 (${starsStr})
-Tone: ${tone}
+
+Sentiment by aspect:
+- Overall: ${sentLabels[overallV]} (${overallV}/5)
+- Value/Price: ${sentLabels[valueV]} (${valueV}/5)
+- Features: ${sentLabels[featuresV]} (${featuresV}/5)
+- Usability: ${sentLabels[usabilityV]} (${usabilityV}/5)
+
+Writing tone: ${toneLabels[toneV]}
+Target length: ${wordCounts[lengthV]} words
 
 Use markdown formatting. Structure the review with:
-- An H2 headline
+- An H2 headline that reflects the overall sentiment
 - An opening paragraph
 - A "Pros" section (bulleted list)
 - A "Cons" section (bulleted list)
 - A "Verdict" paragraph
 
-Keep it between 280–420 words. Do not mention that this is AI-generated.`;
+The review's sentiment for each aspect should closely match the specified ratings above. Do not mention that this is AI-generated.`;
 
     try {
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -724,7 +816,7 @@ Keep it between 280–420 words. Do not mention that this is AI-generated.`;
       document.getElementById('stars-out').textContent = starsStr;
       document.getElementById('review-content').innerHTML = marked.parse(md);
       document.getElementById('out-meta').textContent =
-        `${prodName} · ${selModel} · ${new Date().toLocaleTimeString()}`;
+        `${prodName} · ${selModel} · ${toneLabels[toneV]} · ${wordCounts[lengthV]}w · ${new Date().toLocaleTimeString()}`;
       copyBtn.style.display = '';
       setState('result');
 
