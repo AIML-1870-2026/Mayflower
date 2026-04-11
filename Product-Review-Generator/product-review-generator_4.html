@@ -663,6 +663,7 @@
     const tone     = document.getElementById('tone').value;
 
     if (!apiKey)   { showError('Please enter your OpenAI API key.'); return; }
+    if (apiKey.startsWith('sk-ant-')) { showError('That looks like an Anthropic key (sk-ant-...). This tool uses OpenAI — please paste your OpenAI key instead (sk-proj-... or sk-...). Get one at platform.openai.com/api-keys.'); return; }
     if (!prodName) { showError('Please enter a product name.'); return; }
 
     setState('loading');
