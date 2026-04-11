@@ -699,9 +699,11 @@ Keep it between 280–420 words. Do not mention that this is AI-generated.`;
         `${prodName} · ${selModel} · ${new Date().toLocaleTimeString()}`;
       copyBtn.style.display = '';
       setState('result');
+      alert('DEBUG — Success! Review generated.');
 
     } catch (err) {
       showError(err.message);
+      alert('DEBUG — Error: ' + err.message);
     }
   }
 
