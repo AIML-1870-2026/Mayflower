@@ -661,7 +661,7 @@
   const sentLabels  = ['','Negative','Below Avg','Mixed','Good','Excellent'];
   const toneLabels  = ['','Casual','Friendly','Balanced','Professional','Technical'];
   const lengthLabels= ['','Brief','Standard','Detailed','Long'];
-  const wordCounts  = ['','100–150','200–280','330–420','480–580'];
+  const wordCounts  = ['','50–80','180–220','400–460','700–800'];
 
   function updateSlider(inputId, valId, labels) {
     document.getElementById(valId).textContent = labels[document.getElementById(inputId).value];
@@ -740,14 +740,16 @@ Sentiment by aspect:
 - Usability: ${sentLabels[usabilityV]} (${usabilityV}/5)
 
 Writing tone: ${toneLabels[toneV]}
-Target length: ${wordCounts[lengthV]} words
+Target length: ${lengthLabels[lengthV]} — STRICTLY ${wordCounts[lengthV]} words total. Do not exceed or fall short of this range.${lengthV === 1 ? ' This is a very short snapshot — 2 to 3 sentences only. No bullet lists, just a single tight paragraph.' : ''}
 
 Use markdown formatting. Structure the review with:
-- An H2 headline that reflects the overall sentiment
+${lengthV === 1
+  ? '- A single short paragraph with an inline verdict. No headings, no bullet lists.'
+  : `- An H2 headline that reflects the overall sentiment
 - An opening paragraph
 - A "Pros" section (bulleted list)
 - A "Cons" section (bulleted list)
-- A "Verdict" paragraph
+- A "Verdict" paragraph`}
 
 The review's sentiment for each aspect should closely match the specified ratings above. Do not mention that this is AI-generated.`;
 
@@ -760,7 +762,7 @@ The review's sentiment for each aspect should closely match the specified rating
         },
         body: JSON.stringify({
           model: selModel,
-          max_tokens: 1000,
+          max_tokens: 1200,
           messages: [
             {
               role: 'system',
