@@ -580,7 +580,7 @@
         <span class="slider-val" id="sent-overall-val">Good</span>
       </div>
       <div class="slider-row">
-        <span class="slider-name">Value</span>
+        <span class="slider-name">Price</span>
         <input type="range" id="sent-value" min="1" max="5" value="3" oninput="updateSlider('sent-value','sent-value-val',sentLabels)">
         <span class="slider-val" id="sent-value-val">Mixed</span>
       </div>
@@ -612,9 +612,6 @@
       <div class="slider-endpoints"><span></span><span>Long</span></div>
 
       <button class="gen-btn" id="gen-btn">Generate Review</button>
-      <button class="gen-btn" id="test-btn" style="margin-top:6px;background:var(--surface2);color:var(--muted);font-size:13px;font-family:var(--mono);font-style:normal;border:1px solid var(--border)">Test API Connection</button>
-      <div id="test-result" style="margin-top:8px;font-family:var(--mono);font-size:11px;display:none;padding:8px 10px;border-left:2px solid var(--border);background:var(--surface2);word-break:break-all;line-height:1.6"></div>
-
       <div class="ftc">
         ⚠ FTC NOTICE — AI-generated reviews may not be published as genuine consumer reviews. For educational use only. Posting AI reviews as real violates federal rules (up to $51,744/violation).
       </div>
@@ -692,31 +689,6 @@
   // Generate
   document.getElementById('gen-btn').addEventListener('click', generate);
 
-  document.getElementById('test-btn').addEventListener('click', async () => {
-    const apiKey = document.getElementById('api-key').value.trim();
-    const out = document.getElementById('test-result');
-    out.style.display = 'block';
-    out.style.borderLeftColor = 'var(--accent-dim)';
-    out.textContent = 'Testing...';
-    if (!apiKey) { out.textContent = '⚠ No API key entered.'; return; }
-    try {
-      const res = await fetch('https://api.openai.com/v1/models', {
-        headers: { 'Authorization': 'Bearer ' + apiKey }
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok) {
-        out.style.borderLeftColor = '#2d7a4f';
-        out.textContent = '✓ Connected! Key is valid. HTTP ' + res.status + '. Models available: ' + (data.data?.length || '?');
-      } else {
-        out.style.borderLeftColor = '#c0392b';
-        out.textContent = '✗ HTTP ' + res.status + ' — ' + (data?.error?.message || JSON.stringify(data));
-      }
-    } catch (err) {
-      out.style.borderLeftColor = '#c0392b';
-      out.textContent = '✗ Network error: ' + err.name + ': ' + err.message + '\n\nThis means the browser blocked the request before it reached OpenAI. Likely cause: browser extension (ad blocker, privacy shield) or network firewall blocking api.openai.com.';
-    }
-  });
-
   function loadEnvFile(e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -763,7 +735,7 @@ Product: ${prodName}${catLine}${featLine}
 
 Sentiment by aspect:
 - Overall: ${sentLabels[overallV]} (${overallV}/5)
-- Value/Price: ${sentLabels[valueV]} (${valueV}/5)
+- Price: ${sentLabels[valueV]} (${valueV}/5)
 - Features: ${sentLabels[featuresV]} (${featuresV}/5)
 - Usability: ${sentLabels[usabilityV]} (${usabilityV}/5)
 

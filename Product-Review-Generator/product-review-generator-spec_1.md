@@ -84,7 +84,7 @@ Four independent range sliders, each ranging 1–5:
 | Aspect | Default | Scale |
 |---|---|---|
 | Overall | 4 — Good | Negative → Excellent |
-| Value | 3 — Mixed | Negative → Excellent |
+| Price | 3 — Mixed | Negative → Excellent |
 | Features | 4 — Good | Negative → Excellent |
 | Usability | 4 — Good | Negative → Excellent |
 
@@ -124,7 +124,7 @@ Key details: [features]
 
 Sentiment by aspect:
 - Overall: Good (4/5)
-- Value/Price: Mixed (3/5)
+- Price: Mixed (3/5)
 - Features: Good (4/5)
 - Usability: Good (4/5)
 
