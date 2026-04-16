@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>LLM Switchboard</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0e0f11;--surface:#16181c;--surface2:#1e2126;
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.13);
+  --text:#e8eaed;--muted:#7a8090;
+  --accent:#4f8ef7;--accent2:#7c5cfc;
+  --green:#2dd4a0;--amber:#f5a623;--red:#f05252;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+  --radius:10px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--sans);background:var(--bg);color:var(--text);font-size:14px;line-height:1.6}
+.shell{display:flex;flex-direction:column;height:100vh}
+.topbar{display:flex;align-items:center;gap:16px;padding:0 24px;height:56px;border-bottom:1px solid var(--border);flex-shrink:0;background:var(--surface)}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:13px;font-weight:500;letter-spacing:.08em}
+.logo-icon{width:28px;height:28px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px}
+.version-tag{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(79,142,247,.12);color:var(--accent);border:1px solid rgba(79,142,247,.25);letter-spacing:.06em}
+.nav-tabs{display:flex;gap:2px;margin-left:12px}
+.nav-tab{padding:6px 14px;border-radius:6px;background:transparent;border:none;color:var(--muted);font-family:var(--sans);font-size:13px;cursor:pointer;transition:color .15s,background .15s}
+.nav-tab:hover{color:var(--text);background:var(--surface2)}
+.nav-tab.active{color:var(--text);background:var(--surface2);font-weight:500}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--muted);transition:background .3s}
+.status-dot.ok{background:var(--green);box-shadow:0 0 6px var(--green)}
+.status-label{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.content{flex:1;overflow-y:auto}
+.panel{display:none;padding:28px 32px;max-width:960px;margin:0 auto}
+.panel.active{display:block}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px 22px;margin-bottom:16px}
+.card-title{font-family:var(--mono);font-size:10px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+.card-title::after{content:'';flex:1;height:1px;background:var(--border)}
+label{display:block;font-size:11px;font-family:var(--mono);letter-spacing:.06em;color:var(--muted);margin-bottom:5px;text-transform:uppercase}
+input[type=text],input[type=password],textarea,select{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-family:var(--mono);font-size:12px;padding:9px 12px;transition:border-color .15s;outline:none}
+input[type=text]:focus,input[type=password]:focus,textarea:focus,select:focus{border-color:rgba(79,142,247,.4)}
+textarea{resize:vertical;line-height:1.55}
+select{cursor:pointer}
+select option{background:var(--surface2)}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.col{flex:1;min-width:160px}
+.hint{font-size:11px;color:var(--muted);margin-top:4px;font-family:var(--mono)}
+.btn{padding:8px 16px;border-radius:7px;border:1px solid var(--border2);background:transparent;color:var(--text);font-family:var(--sans);font-size:13px;cursor:pointer;transition:background .15s,transform .1s;white-space:nowrap}
+.btn:hover{background:var(--surface2)}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:500}
+.btn.primary:hover{background:#3b7de8}
+.btn.sm{padding:5px 11px;font-size:12px}
+.btn.ghost{border-color:transparent;color:var(--muted)}
+.btn.ghost:hover{color:var(--text);background:var(--surface2)}
+.btn.danger-ghost{border-color:transparent;color:var(--red);opacity:.7}
+.btn.danger-ghost:hover{opacity:1;background:rgba(240,82,82,.08)}
+
+/* ── Mode switcher ── */
+.mode-switcher{display:flex;gap:0;border:1px solid var(--border2);border-radius:8px;overflow:hidden;margin-bottom:16px}
+.mode-btn{flex:1;padding:10px 16px;background:transparent;border:none;color:var(--muted);font-family:var(--sans);font-size:13px;cursor:pointer;transition:background .15s,color .15s;text-align:center}
+.mode-btn:not(:last-child){border-right:1px solid var(--border2)}
+.mode-btn:hover{color:var(--text);background:var(--surface2)}
+.mode-btn.active{background:var(--surface2);color:var(--text);font-weight:500}
+.mode-btn.active.free-text{color:#2dd4a0}
+.mode-btn.active.structured{color:var(--accent)}
+.mode-badge{display:inline-block;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:6px;font-family:var(--mono);vertical-align:middle}
+.badge-free{background:rgba(45,212,160,.12);color:var(--green)}
+.badge-json{background:rgba(79,142,247,.12);color:var(--accent)}
+.mode-description{font-size:12px;color:var(--muted);margin-bottom:14px;padding:10px 12px;background:var(--surface2);border-radius:7px;border-left:2px solid var(--border2);line-height:1.5}
+.mode-description.free{border-left-color:var(--green)}
+.mode-description.json{border-left-color:var(--accent)}
+
+/* ── Example prompt cards ── */
+.examples-section{margin-bottom:16px}
+.examples-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.examples-header-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase}
+.examples-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.example-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;cursor:pointer;transition:border-color .15s,background .15s}
+.example-card:hover{border-color:var(--border2);background:var(--surface2)}
+.example-card .ec-icon{font-size:18px;margin-bottom:6px;display:block}
+.example-card .ec-name{font-size:12px;font-weight:500;margin-bottom:3px}
+.example-card .ec-desc{font-size:11px;color:var(--muted);line-height:1.4}
+.example-card .ec-tag{font-size:10px;font-family:var(--mono);padding:1px 6px;border-radius:4px;margin-top:6px;display:inline-block}
+.tag-free{background:rgba(45,212,160,.1);color:var(--green)}
+.tag-json{background:rgba(79,142,247,.1);color:var(--accent)}
+
+/* ── Schema section in chat ── */
+.schema-inline{margin-bottom:12px;padding:14px;background:var(--surface2);border:1px solid rgba(79,142,247,.2);border-radius:8px}
+.schema-inline-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.schema-inline-label{font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--accent);text-transform:uppercase}
+.schema-pills{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.schema-pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:5px;background:var(--surface);border:1px solid var(--border);font-family:var(--mono);font-size:11px;cursor:pointer;color:var(--muted);transition:color .15s,border-color .15s}
+.schema-pill:hover{color:var(--text);border-color:var(--accent)}
+
+/* ── Response / metrics ── */
+.response-box{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:14px 16px;font-family:var(--mono);font-size:12px;line-height:1.65;white-space:pre-wrap;word-break:break-word;min-height:100px;color:var(--text)}
+.response-box.loading{color:var(--muted);animation:pulse 1.2s ease-in-out infinite}
+.response-box.error-state{color:var(--red);border-color:rgba(240,82,82,.3)}
+@keyframes pulse{0%,100%{opacity:.4}50%{opacity:.8}}
+.metric-row{display:flex;gap:10px;margin-top:12px}
+.metric{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:10px 12px;text-align:center}
+.metric .val{font-family:var(--mono);font-size:18px;font-weight:500;color:var(--accent)}
+.metric .lbl{font-size:10px;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;font-family:var(--mono);margin-top:3px}
+
+/* ── Compare ── */
+.compare-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:680px){.compare-grid{grid-template-columns:1fr}}
+
+/* ── Validator ── */
+.field-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
+.field-row:last-child{border:none}
+.field-name{font-family:var(--mono);flex:1}
+.field-type{font-family:var(--mono);font-size:10px;color:var(--muted)}
+.chip{font-size:10px;padding:2px 8px;border-radius:4px;font-family:var(--mono);font-weight:500;letter-spacing:.04em}
+.chip.ok{background:rgba(45,212,160,.12);color:var(--green)}
+.chip.missing{background:rgba(240,82,82,.12);color:var(--red)}
+.chip.wrong{background:rgba(245,166,35,.12);color:var(--amber)}
+.score-bar-bg{height:4px;background:var(--border);border-radius:2px;margin:10px 0;overflow:hidden}
+.score-bar{height:100%;border-radius:2px;transition:width .5s ease}
+
+/* ── Library ── */
+.prompt-item{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer;transition:border-color .15s}
+.prompt-item:hover{border-color:var(--border2)}
+.prompt-item .name{font-weight:500;font-size:13px}
+.prompt-item .preview{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:560px}
+.prompt-icon{width:32px;height:32px;border-radius:7px;background:rgba(79,142,247,.1);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.example-tag{font-size:10px;padding:1px 7px;border-radius:4px;background:rgba(124,92,252,.12);color:var(--accent2);font-family:var(--mono)}
+.empty-state{text-align:center;padding:32px;color:var(--muted);font-size:13px}
+.empty-state .icon{font-size:28px;margin-bottom:10px}
+
+.upload-area{border:1px dashed var(--border2);border-radius:7px;padding:12px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:border-color .15s}
+.upload-area:hover{border-color:var(--accent)}
+.upload-area span{font-size:12px;color:var(--muted)}
+.actions-row{display:flex;align-items:center;gap:8px;justify-content:flex-end;margin-top:10px}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      LLM SWITCHBOARD
+    </div>
+    <span class="version-tag">v3.0</span>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="switchTab('config')">Config</button>
+      <button class="nav-tab" onclick="switchTab('chat')">Chat</button>
+      <button class="nav-tab" onclick="switchTab('compare')">Compare</button>
+      <button class="nav-tab" onclick="switchTab('library')">Library</button>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+      <span class="status-label" id="status-label">no key</span>
+      <div class="status-dot" id="status-dot"></div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- CONFIG -->
+    <div class="panel active" id="tab-config">
+      <div class="card">
+        <div class="card-title">API keys</div>
+        <div class="row" style="margin-bottom:14px">
+          <div class="col">
+            <label>Anthropic API key</label>
+            <input type="password" id="key-anthropic" placeholder="sk-ant-..." oninput="updateStatus()"/>
+            <div class="hint">// console.anthropic.com</div>
+          </div>
+          <div class="col">
+            <label>OpenAI API key</label>
+            <input type="password" id="key-openai" placeholder="sk-proj-..." oninput="updateStatus()"/>
+            <div class="hint">// platform.openai.com/api-keys</div>
+          </div>
+        </div>
+        <input type="file" id="env-file" accept=".env,.csv" style="display:none" onchange="loadEnvFile(event)"/>
+        <div class="upload-area" onclick="document.getElementById('env-file').click()">
+          <span style="font-size:16px">📂</span>
+          <span>Upload .env or CSV — reads ANTHROPIC_API_KEY &amp; OPENAI_API_KEY automatically</span>
+          <span id="file-status" style="margin-left:auto;color:var(--green);font-size:11px;font-family:var(--mono)"></span>
+        </div>
+        <div class="hint" style="margin-top:6px">// keys stored in memory only — never written to disk</div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Model selection</div>
+        <div class="row">
+          <div class="col">
+            <label>Provider</label>
+            <select id="provider" onchange="updateModels()">
+              <option value="anthropic">Anthropic</option>
+              <option value="openai">OpenAI</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>Model</label>
+            <select id="model"></select>
+          </div>
+          <div class="col" style="max-width:140px">
+            <label>Max tokens</label>
+            <input type="text" id="max-tokens" value="1024"/>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHAT -->
+    <div class="panel" id="tab-chat">
+
+      <!-- Example prompts -->
+      <div class="examples-section">
+        <div class="examples-header">
+          <span class="examples-header-label">Try an example</span>
+          <button class="btn ghost sm" onclick="toggleExamples()">
+            <span id="examples-toggle-label">Hide</span>
+          </button>
+        </div>
+        <div id="examples-grid" class="examples-grid"></div>
+      </div>
+
+      <!-- Mode switcher -->
+      <div class="card">
+        <div class="card-title">Output mode</div>
+        <div class="mode-switcher">
+          <button class="mode-btn free-text active" id="mode-free" onclick="setMode('free')">
+            Free text
+            <span class="mode-badge badge-free">unstructured</span>
+          </button>
+          <button class="mode-btn structured" id="mode-json" onclick="setMode('json')">
+            JSON output
+            <span class="mode-badge badge-json">structured</span>
+          </button>
+        </div>
+        <div class="mode-description free" id="mode-desc">
+          <strong style="color:var(--green)">Free text mode</strong> — the model responds naturally in plain language. Good for questions, explanations, summaries, creative writing, and general chat.
+        </div>
+
+        <!-- JSON schema (only in JSON mode) -->
+        <div id="schema-inline" class="schema-inline" style="display:none">
+          <div class="schema-inline-header">
+            <span class="schema-inline-label">JSON Schema</span>
+            <span style="font-size:11px;color:var(--muted);font-family:var(--mono)">defines the shape of the output</span>
+          </div>
+          <textarea id="schema-input" rows="5" placeholder='{"type":"object","properties":{"sentiment":{"type":"string"},"score":{"type":"number"}},"required":["sentiment","score"]}'></textarea>
+          <div class="schema-pills">
+            <span style="font-size:11px;color:var(--muted);margin-right:2px;font-family:var(--mono)">examples:</span>
+            <span class="schema-pill" onclick="loadExSchema('sentiment')">sentiment</span>
+            <span class="schema-pill" onclick="loadExSchema('entity')">entity extraction</span>
+            <span class="schema-pill" onclick="loadExSchema('summary')">summary</span>
+            <span class="schema-pill" onclick="loadExSchema('qa')">Q&amp;A pair</span>
+            <span class="schema-pill" onclick="loadExSchema('classification')">classification</span>
+          </div>
+        </div>
+
+        <label style="margin-top:12px">System prompt <span style="text-transform:none;letter-spacing:0;font-family:var(--sans);font-style:italic;font-size:11px;color:var(--muted)">(optional)</span></label>
+        <textarea id="system-prompt" rows="2" placeholder="You are a helpful assistant..."></textarea>
+      </div>
+
+      <!-- Prompt input -->
+      <div class="card">
+        <div class="card-title">Your prompt</div>
+        <textarea id="user-prompt" rows="5" placeholder="Enter your message here, or click an example above to get started..."></textarea>
+        <div class="actions-row">
+          <button class="btn ghost sm" onclick="clearChat()">Clear</button>
+          <button class="btn primary" onclick="sendChat()">Send →</button>
+        </div>
+      </div>
+
+      <!-- Response -->
+      <div id="chat-result" style="display:none">
+        <div class="card">
+          <div class="card-title">
+            Response
+            <span id="chat-model-label" style="font-weight:400;text-transform:none;letter-spacing:0;font-family:var(--mono);font-size:10px;color:var(--accent)"></span>
+            <span id="chat-mode-label" style="font-weight:400;text-transform:none;letter-spacing:0;font-family:var(--mono);font-size:10px"></span>
+          </div>
+          <div class="response-box" id="chat-output"></div>
+          <div class="metric-row">
+            <div class="metric"><div class="val" id="m-time">—</div><div class="lbl">Response time</div></div>
+            <div class="metric"><div class="val" id="m-tokens">—</div><div class="lbl">Tokens</div></div>
+            <div class="metric"><div class="val" id="m-chars">—</div><div class="lbl">Characters</div></div>
+          </div>
+          <div class="actions-row" style="margin-top:10px">
+            <button class="btn ghost sm" onclick="copyOutput()">Copy response</button>
+            <button class="btn sm" onclick="saveToLibrary()">Save prompt to library</button>
+          </div>
+        </div>
+        <div id="validator-card" class="card" style="display:none">
+          <div class="card-title">Structured output validator</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:12px;color:var(--muted)">Schema compliance</span>
+            <span id="validator-score" style="font-family:var(--mono);font-size:20px;font-weight:500"></span>
+          </div>
+          <div class="score-bar-bg"><div class="score-bar" id="score-bar"></div></div>
+          <div id="validator-output"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMPARE -->
+    <div class="panel" id="tab-compare">
+      <div class="card">
+        <div class="card-title">Side-by-side comparison</div>
+        <div class="row" style="margin-bottom:12px">
+          <div class="col">
+            <label>Provider A</label>
+            <select id="compare-provider-a" onchange="updateCompareModels('a')">
+              <option value="anthropic">Anthropic</option>
+              <option value="openai">OpenAI</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>Model A</label>
+            <select id="compare-model-a"></select>
+          </div>
+        </div>
+        <div class="row" style="margin-bottom:14px">
+          <div class="col">
+            <label>Provider B</label>
+            <select id="compare-provider-b" onchange="updateCompareModels('b')">
+              <option value="anthropic">Anthropic</option>
+              <option value="openai" selected>OpenAI</option>
+            </select>
+          </div>
+          <div class="col">
+            <label>Model B</label>
+            <select id="compare-model-b"></select>
+          </div>
+        </div>
+        <label>Prompt (sent to both simultaneously)</label>
+        <textarea id="compare-prompt" rows="4" placeholder="Enter a prompt to send to both models at once..."></textarea>
+        <div class="actions-row">
+          <button class="btn primary" onclick="sendCompare()">Compare →</button>
+        </div>
+      </div>
+      <div id="compare-result" style="display:none">
+        <div class="compare-grid">
+          <div class="card">
+            <div class="card-title" id="compare-label-a">Model A</div>
+            <div class="response-box" id="compare-out-a"></div>
+            <div class="metric-row">
+              <div class="metric"><div class="val" id="cm-time-a">—</div><div class="lbl">Time</div></div>
+              <div class="metric"><div class="val" id="cm-tokens-a">—</div><div class="lbl">Tokens</div></div>
+              <div class="metric"><div class="val" id="cm-chars-a">—</div><div class="lbl">Chars</div></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title" id="compare-label-b">Model B</div>
+            <div class="response-box" id="compare-out-b"></div>
+            <div class="metric-row">
+              <div class="metric"><div class="val" id="cm-time-b">—</div><div class="lbl">Time</div></div>
+              <div class="metric"><div class="val" id="cm-tokens-b">—</div><div class="lbl">Tokens</div></div>
+              <div class="metric"><div class="val" id="cm-chars-b">—</div><div class="lbl">Chars</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LIBRARY -->
+    <div class="panel" id="tab-library">
+      <div class="card">
+        <div class="card-title">Save new prompt</div>
+        <div class="row">
+          <div class="col" style="max-width:240px">
+            <label>Name</label>
+            <input type="text" id="lib-name" placeholder="My prompt"/>
+          </div>
+          <div class="col">
+            <label>Prompt text</label>
+            <input type="text" id="lib-prompt" placeholder="Summarize the following in 3 bullet points: ..."/>
+          </div>
+          <div style="padding-top:19px">
+            <button class="btn primary" onclick="addToLibrary()">Save</button>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Saved prompts <span id="lib-count" style="text-transform:none;letter-spacing:0;font-family:var(--mono);font-size:10px;color:var(--accent)"></span></div>
+        <div id="lib-list"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">All example prompts</div>
+        <div id="example-list"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const MODELS = {
+  anthropic:[
+    {value:'claude-opus-4-5',            label:'Claude Opus 4.5'},
+    {value:'claude-opus-4-0',            label:'Claude Opus 4'},
+    {value:'claude-sonnet-4-5',          label:'Claude Sonnet 4.5'},
+    {value:'claude-sonnet-4-0',          label:'Claude Sonnet 4'},
+    {value:'claude-3-5-sonnet-20241022', label:'Claude 3.5 Sonnet'},
+    {value:'claude-3-5-haiku-20241022',  label:'Claude 3.5 Haiku'}
+  ],
+  openai:[
+    {value:'gpt-5',       label:'GPT-5'},
+    {value:'gpt-5-mini',  label:'GPT-5 mini'},
+    {value:'gpt-4o',      label:'GPT-4o'},
+    {value:'gpt-4o-mini', label:'GPT-4o mini'},
+    {value:'o3',          label:'o3'},
+    {value:'o4-mini',     label:'o4 mini'}
+  ]
+};
+
+const SCHEMAS = {
+  sentiment:{type:'object',properties:{sentiment:{type:'string',enum:['positive','negative','neutral']},confidence:{type:'number'},explanation:{type:'string'}},required:['sentiment','confidence','explanation']},
+  entity:{type:'object',properties:{entities:{type:'array',items:{type:'object',properties:{text:{type:'string'},type:{type:'string'}},required:['text','type']}},count:{type:'number'}},required:['entities','count']},
+  summary:{type:'object',properties:{headline:{type:'string'},key_points:{type:'array',items:{type:'string'}},word_count:{type:'number'}},required:['headline','key_points','word_count']},
+  qa:{type:'object',properties:{question:{type:'string'},answer:{type:'string'},confidence:{type:'number'},sources:{type:'array',items:{type:'string'}}},required:['question','answer','confidence']},
+  classification:{type:'object',properties:{label:{type:'string'},category:{type:'string'},reasoning:{type:'string'},score:{type:'number'}},required:['label','category','score']}
+};
+
+// Examples — mode indicates which output mode they pair with
+const EXAMPLES = [
+  {icon:'💬', name:'General question',      desc:'Ask anything in plain language',          mode:'free', prompt:'Explain how transformers work in machine learning, in plain English.'},
+  {icon:'📝', name:'Summarize text',        desc:'Condense a passage into key points',       mode:'free', prompt:'Summarize the following text in 3 concise bullet points:\n\n[paste your text here]'},
+  {icon:'🔍', name:'Code review',           desc:'Get feedback on a block of code',          mode:'free', prompt:'Review this code for bugs, performance issues, and style improvements:\n\n[paste your code here]'},
+  {icon:'💡', name:"Explain simply",        desc:'Get a beginner-friendly explanation',      mode:'free', prompt:'Explain [concept] as if I were 10 years old. Use a simple analogy.'},
+  {icon:'🧠', name:'Brainstorm ideas',      desc:'Generate a list of creative ideas',        mode:'free', prompt:'Generate 10 creative and diverse ideas for: [your topic here]'},
+  {icon:'📊', name:'Sentiment analysis',    desc:'Classify tone as JSON with a score',       mode:'json', prompt:'Analyze the sentiment of this customer review and return structured JSON:\n\n[paste review here]', schema:'sentiment'},
+  {icon:'🏷️', name:'Entity extraction',    desc:'Pull out names, orgs, dates as JSON',      mode:'json', prompt:'Extract all named entities (people, organizations, locations, dates) from the following text and return as structured JSON:\n\n[paste text here]', schema:'entity'},
+  {icon:'📋', name:'Structured summary',    desc:'Summarize with headline + key points',     mode:'json', prompt:'Read the following article and return a structured summary as JSON:\n\n[paste article here]', schema:'summary'},
+  {icon:'❓', name:'Q&A extraction',        desc:'Pull a question-answer pair from text',    mode:'json', prompt:'Given the following passage, extract the main question it answers and provide a concise answer, as structured JSON:\n\n[paste passage here]', schema:'qa'},
+  {icon:'🗂️', name:'Classify content',     desc:'Assign a label and category to text',      mode:'json', prompt:'Classify the following piece of text into a category and assign a confidence score, as structured JSON:\n\n[paste text here]', schema:'classification'},
+];
+
+let promptLibrary = [];
+let currentMode = 'free';
+let examplesVisible = true;
+
+// ── UI helpers ────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelector(`[onclick="switchTab('${name}')"]`).classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+}
+
+function updateModels() {
+  const p = document.getElementById('provider').value;
+  document.getElementById('model').innerHTML =
+    MODELS[p].map(m=>`<option value="${m.value}">${m.label}</option>`).join('');
+}
+
+function updateCompareModels(side) {
+  const p = document.getElementById(`compare-provider-${side}`).value;
+  document.getElementById(`compare-model-${side}`).innerHTML =
+    MODELS[p].map(m=>`<option value="${m.value}">${m.label}</option>`).join('');
+}
+
+updateModels();
+updateCompareModels('a');
+updateCompareModels('b');
+
+function updateStatus() {
+  const ak = document.getElementById('key-anthropic').value.trim();
+  const ok = document.getElementById('key-openai').value.trim();
+  const dot = document.getElementById('status-dot');
+  const lbl = document.getElementById('status-label');
+  if (ak&&ok){dot.className='status-dot ok';lbl.textContent='both keys set';}
+  else if(ak){dot.className='status-dot ok';lbl.textContent='anthropic';}
+  else if(ok){dot.className='status-dot ok';lbl.textContent='openai';}
+  else{dot.className='status-dot';lbl.textContent='no key';}
+}
+
+// ── Mode switcher ─────────────────────────────────────────────
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('mode-free').classList.toggle('active', mode==='free');
+  document.getElementById('mode-json').classList.toggle('active', mode==='json');
+  document.getElementById('schema-inline').style.display = mode==='json' ? 'block' : 'none';
+
+  const desc = document.getElementById('mode-desc');
+  if (mode==='free') {
+    desc.className='mode-description free';
+    desc.innerHTML='<strong style="color:var(--green)">Free text mode</strong> — the model responds naturally in plain language. Good for questions, explanations, summaries, creative writing, and general chat.';
+  } else {
+    desc.className='mode-description json';
+    desc.innerHTML='<strong style="color:var(--accent)">JSON output mode</strong> — the model\'s response is constrained to a specific JSON shape you define. Good for data extraction, classification, and structured processing pipelines.';
+  }
+  renderExampleCards(); // re-render to highlight matching mode
+}
+
+function loadExSchema(type) {
+  document.getElementById('schema-input').value = JSON.stringify(SCHEMAS[type], null, 2);
+}
+
+// ── Example cards ─────────────────────────────────────────────
+function renderExampleCards() {
+  const grid = document.getElementById('examples-grid');
+  grid.innerHTML = EXAMPLES.map((ex,i) => `
+    <div class="example-card" onclick="loadExample(${i})" style="opacity:${ex.mode===currentMode?'1':'0.45'}">
+      <span class="ec-icon">${ex.icon}</span>
+      <div class="ec-name">${ex.name}</div>
+      <div class="ec-desc">${ex.desc}</div>
+      <span class="ec-tag ${ex.mode==='free'?'tag-free':'tag-json'}">${ex.mode==='free'?'free text':'JSON'}</span>
+    </div>`).join('');
+}
+
+function loadExample(idx) {
+  const ex = EXAMPLES[idx];
+  setMode(ex.mode);
+  document.getElementById('user-prompt').value = ex.prompt;
+  if (ex.schema) {
+    document.getElementById('schema-input').value = JSON.stringify(SCHEMAS[ex.schema], null, 2);
+  }
+  document.getElementById('user-prompt').scrollIntoView({behavior:'smooth', block:'center'});
+}
+
+function toggleExamples() {
+  examplesVisible = !examplesVisible;
+  document.getElementById('examples-grid').style.display = examplesVisible ? 'grid' : 'none';
+  document.getElementById('examples-toggle-label').textContent = examplesVisible ? 'Hide' : 'Show';
+}
+
+// ── Library example list ──────────────────────────────────────
+function renderLibraryExamples() {
+  document.getElementById('example-list').innerHTML = EXAMPLES.map((p,i) => `
+    <div class="prompt-item" onclick="loadExampleToChat(${i})">
+      <div class="prompt-icon">${p.icon}</div>
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div class="name">${p.name}</div>
+          <span class="example-tag">${p.mode==='json'?'JSON':'free text'}</span>
+        </div>
+        <div class="preview">${p.prompt}</div>
+      </div>
+    </div>`).join('');
+}
+
+function loadExampleToChat(idx) {
+  loadExample(idx);
+  switchTab('chat');
+}
+
+// ── .env loader ───────────────────────────────────────────────
+function loadEnvFile(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const text = ev.target.result;
+    const am = text.match(/ANTHROPIC_API_KEY\s*[=,]\s*["']?([^\r\n"',]+)["']?/);
+    const om = text.match(/OPENAI_API_KEY\s*[=,]\s*["']?([^\r\n"',]+)["']?/);
+    if (am) document.getElementById('key-anthropic').value = am[1].trim();
+    if (om) document.getElementById('key-openai').value = om[1].trim();
+    const count = (am?1:0)+(om?1:0);
+    document.getElementById('file-status').textContent = count ? `✓ loaded ${count} key(s)` : '⚠ no keys found';
+    updateStatus();
+  };
+  reader.readAsText(file);
+}
+
+// ── API callers ───────────────────────────────────────────────
+function injectSchema(prompt, schema) {
+  return schema
+    ? `${prompt}\n\nRespond ONLY with valid JSON matching this schema:\n${JSON.stringify(schema)}\nNo markdown fences, no extra text.`
+    : prompt;
+}
+
+async function callAnthropic(model, system, userPrompt, maxTokens, schema) {
+  const key = document.getElementById('key-anthropic').value.trim();
+  if (!key) throw new Error('No Anthropic API key — add it in the Config tab.');
+  const body = {model, max_tokens:parseInt(maxTokens)||1024, messages:[{role:'user',content:injectSchema(userPrompt,schema)}]};
+  if (system) body.system = system;
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+    body:JSON.stringify(body)
+  });
+  if (!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error?.message||`HTTP ${res.status}`);}
+  const data = await res.json();
+  return {text:data.content?.find(b=>b.type==='text')?.text||'', tokens:(data.usage?.input_tokens||0)+(data.usage?.output_tokens||0)};
+}
+
+async function callOpenAI(model, system, userPrompt, maxTokens, schema) {
+  const key = document.getElementById('key-openai').value.trim();
+  if (!key) throw new Error('No OpenAI API key — add it in the Config tab.');
+  const messages=[];
+  if (system) messages.push({role:'system',content:system});
+  messages.push({role:'user',content:injectSchema(userPrompt,schema)});
+  const isO = model==='o3'||model==='o4-mini'||model==='gpt-5'||model==='gpt-5-mini';
+  const body = {model, messages};
+  body[isO?'max_completion_tokens':'max_tokens'] = parseInt(maxTokens)||1024;
+  if (schema&&!isO) body.response_format={type:'json_object'};
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+    body:JSON.stringify(body)
+  });
+  if (!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error?.message||`HTTP ${res.status}`);}
+  const data = await res.json();
+  return {text:data.choices?.[0]?.message?.content||'', tokens:data.usage?.total_tokens||0};
+}
+
+async function callProvider(provider, model, system, userPrompt, maxTokens, schema) {
+  if (provider==='anthropic') return callAnthropic(model,system,userPrompt,maxTokens,schema);
+  if (provider==='openai')    return callOpenAI(model,system,userPrompt,maxTokens,schema);
+  throw new Error('Unknown provider: '+provider);
+}
+
+// ── Chat ──────────────────────────────────────────────────────
+async function sendChat() {
+  const provider  = document.getElementById('provider').value;
+  const model     = document.getElementById('model').value;
+  const system    = document.getElementById('system-prompt').value.trim();
+  const prompt    = document.getElementById('user-prompt').value.trim();
+  const maxTokens = document.getElementById('max-tokens').value;
+  const isJson    = currentMode==='json';
+  let schema = null;
+  if (isJson) {
+    const raw = document.getElementById('schema-input').value.trim();
+    if (!raw){alert('Please enter a JSON schema, or switch to Free Text mode.');return;}
+    try{schema=JSON.parse(raw);}
+    catch(e){alert('Invalid JSON schema — check the formatting.');return;}
+  }
+  if (!prompt){alert('Please enter a prompt.');return;}
+
+  const out = document.getElementById('chat-output');
+  document.getElementById('chat-result').style.display='block';
+  document.getElementById('validator-card').style.display='none';
+  out.className='response-box loading';
+  out.textContent=`Calling ${provider} / ${model}...`;
+  document.getElementById('chat-model-label').textContent=`${provider} · ${model}`;
+  document.getElementById('chat-mode-label').textContent=isJson?' · JSON mode':'';
+  document.getElementById('chat-mode-label').style.color=isJson?'var(--accent)':'var(--muted)';
+  ['m-time','m-tokens','m-chars'].forEach(id=>document.getElementById(id).textContent='—');
+
+  const t0=Date.now();
+  try {
+    const {text,tokens}=await callProvider(provider,model,system,prompt,maxTokens,schema);
+    out.className='response-box';
+    out.textContent=text;
+    document.getElementById('m-time').textContent=((Date.now()-t0)/1000).toFixed(2)+'s';
+    document.getElementById('m-tokens').textContent=tokens||'—';
+    document.getElementById('m-chars').textContent=text.length;
+    if (isJson&&schema){
+      document.getElementById('validator-card').style.display='block';
+      validateOutput(text,schema);
+    }
+  } catch(err){
+    out.className='response-box error-state';
+    out.textContent='Error: '+err.message;
+  }
+}
+
+// ── Compare ───────────────────────────────────────────────────
+async function sendCompare() {
+  const prompt=document.getElementById('compare-prompt').value.trim();
+  if (!prompt){alert('Please enter a prompt.');return;}
+  const pA=document.getElementById('compare-provider-a').value;
+  const mA=document.getElementById('compare-model-a').value;
+  const pB=document.getElementById('compare-provider-b').value;
+  const mB=document.getElementById('compare-model-b').value;
+
+  document.getElementById('compare-result').style.display='block';
+  document.getElementById('compare-label-a').textContent=`${pA} · ${mA}`;
+  document.getElementById('compare-label-b').textContent=`${pB} · ${mB}`;
+  ['a','b'].forEach(s=>{
+    document.getElementById('compare-out-'+s).className='response-box loading';
+    document.getElementById('compare-out-'+s).textContent='Calling API...';
+    ['time','tokens','chars'].forEach(m=>document.getElementById(`cm-${m}-${s}`).textContent='—');
+  });
+
+  const run=async(provider,model,side)=>{
+    const t0=Date.now();
+    try{
+      const {text,tokens}=await callProvider(provider,model,'',prompt,1024,null);
+      document.getElementById('compare-out-'+side).className='response-box';
+      document.getElementById('compare-out-'+side).textContent=text;
+      document.getElementById(`cm-time-${side}`).textContent=((Date.now()-t0)/1000).toFixed(2)+'s';
+      document.getElementById(`cm-tokens-${side}`).textContent=tokens||'—';
+      document.getElementById(`cm-chars-${side}`).textContent=text.length;
+    }catch(err){
+      document.getElementById('compare-out-'+side).className='response-box error-state';
+      document.getElementById('compare-out-'+side).textContent='Error: '+err.message;
+    }
+  };
+  await Promise.all([run(pA,mA,'a'),run(pB,mB,'b')]);
+}
+
+// ── Validator ─────────────────────────────────────────────────
+function validateOutput(text,schema){
+  let parsed;
+  try{parsed=JSON.parse(text);}
+  catch(e){
+    document.getElementById('validator-output').innerHTML='<div style="color:var(--red);font-family:var(--mono);font-size:12px;padding:8px 0">Response is not valid JSON.</div>';
+    return;
+  }
+  const props=schema.properties||{};
+  const req=schema.required||[];
+  const fields=[...new Set([...req,...Object.keys(props)])];
+  let matches=0,html='';
+  fields.forEach(field=>{
+    const expected=props[field]?.type;
+    const present=Object.prototype.hasOwnProperty.call(parsed,field);
+    const actual=present?(Array.isArray(parsed[field])?'array':typeof parsed[field]):null;
+    const typeOk=!expected||actual===expected;
+    let status,label;
+    if (!present){status='missing';label='missing';}
+    else if(!typeOk){status='wrong';label=`wrong type (got ${actual})`;}
+    else{status='ok';label='ok';matches++;}
+    html+=`<div class="field-row"><span class="field-name">${field}</span><span class="field-type">${expected||'any'}</span><span class="chip ${status}">${label}</span></div>`;
+  });
+  const score=fields.length?Math.round(matches/fields.length*100):100;
+  const color=score===100?'var(--green)':score>60?'var(--amber)':'var(--red)';
+  document.getElementById('validator-score').textContent=score+'%';
+  document.getElementById('validator-score').style.color=color;
+  document.getElementById('score-bar').style.width=score+'%';
+  document.getElementById('score-bar').style.background=color;
+  document.getElementById('validator-output').innerHTML=html;
+}
+
+// ── Library ───────────────────────────────────────────────────
+function clearChat(){
+  document.getElementById('user-prompt').value='';
+  document.getElementById('chat-result').style.display='none';
+}
+function copyOutput(){navigator.clipboard.writeText(document.getElementById('chat-output').textContent).catch(()=>{});}
+function saveToLibrary(){
+  const prompt=document.getElementById('user-prompt').value.trim();
+  if (!prompt) return;
+  promptLibrary.push({name:`Prompt ${promptLibrary.length+1}`,prompt});
+  renderLibrary();
+  switchTab('library');
+}
+function addToLibrary(){
+  const name=document.getElementById('lib-name').value.trim();
+  const prompt=document.getElementById('lib-prompt').value.trim();
+  if (!name||!prompt){alert('Fill in both fields.');return;}
+  promptLibrary.push({name,prompt});
+  document.getElementById('lib-name').value='';
+  document.getElementById('lib-prompt').value='';
+  renderLibrary();
+}
+function deleteFromLibrary(idx){promptLibrary.splice(idx,1);renderLibrary();}
+function loadPrompt(prompt){document.getElementById('user-prompt').value=prompt;switchTab('chat');}
+function renderLibrary(){
+  const list=document.getElementById('lib-list');
+  document.getElementById('lib-count').textContent=promptLibrary.length?`(${promptLibrary.length})`:'';
+  if (!promptLibrary.length){
+    list.innerHTML='<div class="empty-state"><div class="icon">📭</div>No saved prompts yet.<br>Use the Chat tab and click "Save prompt to library".</div>';
+    return;
+  }
+  list.innerHTML=promptLibrary.map((p,i)=>`
+    <div class="prompt-item">
+      <div class="prompt-icon">💾</div>
+      <div style="flex:1;min-width:0" onclick="loadPrompt(${JSON.stringify(p.prompt)})">
+        <div class="name">${p.name}</div>
+        <div class="preview">${p.prompt}</div>
+      </div>
+      <button class="btn sm danger-ghost" onclick="deleteFromLibrary(${i})">Delete</button>
+    </div>`).join('');
+}
+
+// Init
+renderExampleCards();
+renderLibrary();
+renderLibraryExamples();
+</script>
+</body>
+</html>
