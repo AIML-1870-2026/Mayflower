@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Science Experiment Generator — Spec</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #f8f9fa;
+    color: #1a1a2e;
+    font-size: 14px;
+    line-height: 1.7;
+    padding: 40px 20px 80px;
+  }
+
+  .page {
+    max-width: 780px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 4px 40px rgba(0,0,0,.08);
+    overflow: hidden;
+  }
+
+  /* ── Header ── */
+  .doc-header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+    padding: 40px 48px 36px;
+    position: relative;
+    overflow: hidden;
+  }
+  .doc-header::before {
+    content: '🔬';
+    position: absolute; right: 48px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 64px; opacity: .15;
+  }
+  .doc-header h1 {
+    font-size: 26px; font-weight: 700; color: #fff;
+    letter-spacing: -.02em; margin-bottom: 8px;
+  }
+  .doc-header .subtitle {
+    font-size: 13px; color: rgba(255,255,255,.55);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .meta-pills {
+    display: flex; gap: 8px; margin-top: 18px; flex-wrap: wrap;
+  }
+  .pill {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; padding: 3px 10px; border-radius: 20px;
+    letter-spacing: .04em; font-weight: 500;
+  }
+  .pill-blue   { background: rgba(59,130,246,.2);  color: #93c5fd; border: 1px solid rgba(59,130,246,.3); }
+  .pill-green  { background: rgba(52,211,153,.2);  color: #6ee7b7; border: 1px solid rgba(52,211,153,.3); }
+  .pill-amber  { background: rgba(251,191,36,.2);  color: #fcd34d; border: 1px solid rgba(251,191,36,.3); }
+  .pill-purple { background: rgba(167,139,250,.2); color: #c4b5fd; border: 1px solid rgba(167,139,250,.3); }
+
+  /* ── Body ── */
+  .doc-body { padding: 40px 48px; }
+
+  /* ── Sections ── */
+  .section { margin-bottom: 36px; }
+  .section:last-child { margin-bottom: 0; }
+
+  h2 {
+    font-size: 11px; font-weight: 600; letter-spacing: .12em;
+    text-transform: uppercase; color: #6366f1;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  h2::after { content: ''; flex: 1; height: 1px; background: #e5e7eb; }
+
+  h3 {
+    font-size: 15px; font-weight: 600; color: #1a1a2e;
+    margin: 16px 0 8px;
+  }
+
+  p { margin-bottom: 10px; color: #374151; }
+
+  /* ── Constraint cards ── */
+  .constraint-grid { display: grid; gap: 10px; }
+  .constraint {
+    border-radius: 10px; padding: 14px 16px;
+    border-left: 3px solid;
+    background: #f9fafb;
+  }
+  .constraint.blue   { border-color: #3b82f6; }
+  .constraint.green  { border-color: #10b981; }
+  .constraint.purple { border-color: #8b5cf6; }
+  .constraint.amber  { border-color: #f59e0b; }
+  .constraint.indigo { border-color: #6366f1; }
+  .constraint-title {
+    font-size: 13px; font-weight: 600; color: #111827;
+    margin-bottom: 4px; display: flex; align-items: center; gap: 7px;
+  }
+  .constraint-title .icon { font-size: 14px; }
+  .constraint p { font-size: 13px; color: #4b5563; margin: 0; }
+
+  /* ── Reference box ── */
+  .ref-box {
+    background: #0f172a; border-radius: 12px;
+    padding: 24px 26px; color: #e2e8f0;
+  }
+  .ref-box h3 { color: #38bdf8; margin-top: 0; font-size: 14px; }
+  .ref-box p { color: #94a3b8; font-size: 13px; }
+  .ref-box ul { padding-left: 18px; margin: 8px 0 14px; }
+  .ref-box li { color: #94a3b8; font-size: 13px; margin-bottom: 5px; }
+  .ref-box li::marker { color: #38bdf8; }
+  .ref-box .ignore-list li::marker { color: #f87171; }
+  .ref-box .ignore-list li { color: #9ca3af; text-decoration: line-through; text-decoration-color: rgba(248,113,113,.4); }
+  .ref-box code {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    background: rgba(255,255,255,.08); padding: 1px 6px;
+    border-radius: 4px; color: #7dd3fc;
+  }
+  .ref-label {
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: .1em; text-transform: uppercase;
+    color: #475569; margin-bottom: 14px; display: block;
+  }
+
+  /* ── Stretch challenges ── */
+  .stretch-grid { display: grid; gap: 10px; }
+  .stretch {
+    background: #f9fafb; border: 1px solid #e5e7eb;
+    border-radius: 10px; padding: 14px 16px;
+    display: flex; gap: 12px; align-items: flex-start;
+  }
+  .stretch-num {
+    width: 26px; height: 26px; border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff; font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 1px;
+  }
+  .stretch-content .stretch-title { font-size: 13px; font-weight: 600; color: #111827; margin-bottom: 3px; }
+  .stretch-content p { font-size: 13px; color: #4b5563; margin: 0; }
+
+  /* ── File tree ── */
+  .file-tree {
+    background: #0f172a; border-radius: 10px;
+    padding: 18px 22px; font-family: 'JetBrains Mono', monospace;
+    font-size: 13px; line-height: 2;
+  }
+  .file-tree .dir  { color: #7dd3fc; }
+  .file-tree .file { color: #94a3b8; }
+  .file-tree .note { color: #475569; font-size: 11px; }
+  .file-tree .main { color: #34d399; }
+
+  /* ── Deployment ── */
+  .deploy-box {
+    background: linear-gradient(135deg, #ecfdf5, #eff6ff);
+    border: 1px solid #d1fae5; border-radius: 10px;
+    padding: 16px 20px; display: flex; align-items: center; gap: 12px;
+  }
+  .deploy-icon { font-size: 22px; }
+  .deploy-url {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: #065f46; font-weight: 500;
+  }
+  .deploy-label { font-size: 11px; color: #6b7280; margin-bottom: 3px; }
+
+  /* ── Footer ── */
+  .doc-footer {
+    border-top: 1px solid #f3f4f6;
+    padding: 20px 48px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .doc-footer span { font-size: 11px; color: #9ca3af; font-family: 'JetBrains Mono', monospace; }
+
+  /* ── Print ── */
+  @media print {
+    body { background: #fff; padding: 0; }
+    .page { box-shadow: none; border-radius: 0; }
+    .doc-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .ref-box, .file-tree { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- Header -->
+  <div class="doc-header">
+    <h1>Science Experiment Generator</h1>
+    <div class="subtitle">spec.md · AIML 1870 · Mayflower</div>
+    <div class="meta-pills">
+      <span class="pill pill-blue">OpenAI · gpt-4o</span>
+      <span class="pill pill-green">Static · No server</span>
+      <span class="pill pill-amber">Free-text · Markdown</span>
+      <span class="pill pill-purple">3 Stretch Challenges</span>
+    </div>
+  </div>
+
+  <div class="doc-body">
+
+    <!-- Summary -->
+    <div class="section">
+      <h2>Project Summary</h2>
+      <p>A static webpage (HTML, CSS, and JavaScript) that enables a user to interact with an LLM for the purposes of generating grade-appropriate science experiments from a list of available materials. The user provides their OpenAI API key by uploading a <code>.env</code> file — the key is read in-memory only and never stored or transmitted beyond the API call.</p>
+      <p>The page allows the user to provide a <strong>Grade Level</strong> via a dropdown (K–2, 3–5, 6–8, 9–12) and a list of <strong>Available Supplies</strong> via a text input. The model's response is rendered as formatted HTML on the page — similar in feel to the LLM Switchboard: a clean, self-contained static page with no server required.</p>
+    </div>
+
+    <!-- Constraints -->
+    <div class="section">
+      <h2>Key Design Constraints</h2>
+      <div class="constraint-grid">
+        <div class="constraint blue">
+          <div class="constraint-title"><span class="icon">📄</span> Static page — HTML, CSS, and JavaScript only</div>
+          <p>No server, no Node.js, no npm. The page runs entirely in the browser. All dependencies (marked.js, Google Fonts) are loaded from CDN.</p>
+        </div>
+        <div class="constraint amber">
+          <div class="constraint-title"><span class="icon">🔒</span> OpenAI models only — no provider switching</div>
+          <p>Uses <code>gpt-4o</code> exclusively. No Anthropic integration. This is a deliberate architectural choice: Anthropic's API blocks direct browser requests (CORS), so a static page with no backend cannot use it. OpenAI allows browser-to-API calls — that's why this project is OpenAI-only.</p>
+        </div>
+        <div class="constraint purple">
+          <div class="constraint-title"><span class="icon">💬</span> Unstructured responses — free-form text only</div>
+          <p>The model returns free-form text. No <code>response_format: json_object</code>, no schema templates, no structured output. This project uses unstructured (free-form) responses only.</p>
+        </div>
+        <div class="constraint green">
+          <div class="constraint-title"><span class="icon">✨</span> Markdown rendering</div>
+          <p>The model's response includes markdown formatting (bold, lists, headings, etc.). The app renders this as properly formatted HTML using <code>marked.js</code> — not raw text.</p>
+        </div>
+        <div class="constraint indigo">
+          <div class="constraint-title"><span class="icon">🔑</span> API keys loaded from .env — in-memory only</div>
+          <p>The user uploads a <code>.env</code> file; the key is read once via <code>FileReader</code> and stored in a JS variable. Never written to <code>localStorage</code>, cookies, or any server. A direct paste field is also provided — same in-memory-only behavior.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reference Implementation -->
+    <div class="section">
+      <h2>Reference Implementation</h2>
+      <div class="ref-box">
+        <span class="ref-label">spec.md · required section</span>
+        <p>The <code>temp/</code> folder contains my complete LLM Switchboard project (HTML, CSS, and JS files). This is <strong style="color:#f87171">NOT</strong> part of the current project — do not include it in the final build or deployment.</p>
+
+        <h3>Use it as a reference for:</h3>
+        <ul>
+          <li>How to parse a <code>.env</code> file for API keys (in-memory only)</li>
+          <li>The <code>fetch()</code> call structure for OpenAI's chat completions API</li>
+          <li>Error handling patterns for failed API requests</li>
+          <li>How the code is organized across separate files</li>
+          <li>The general approach to building a single-page LLM tool</li>
+        </ul>
+
+        <h3>Ignore these Switchboard features (not needed here):</h3>
+        <ul class="ignore-list">
+          <li>Anthropic integration (this project is OpenAI-only)</li>
+          <li>The model selection dropdown / provider switching</li>
+          <li>Structured output mode and JSON schema handling</li>
+        </ul>
+
+        <p>This project uses unstructured (free-form) responses only.<br/>Render the model's markdown output as formatted HTML.</p>
+      </div>
+    </div>
+
+    <!-- Stretch Challenges -->
+    <div class="section">
+      <h2>Stretch Challenges Implemented</h2>
+      <div class="stretch-grid">
+        <div class="stretch">
+          <div class="stretch-num">1</div>
+          <div class="stretch-content">
+            <div class="stretch-title">Quick Supply Selector</div>
+            <p>A grid of clickable chips in three groups (Kitchen, Craft & Office, Science & Outdoor) lets users select common household supplies with one click. Selected chips sync into the supplies textarea; users can still type freely.</p>
+          </div>
+        </div>
+        <div class="stretch">
+          <div class="stretch-num">2</div>
+          <div class="stretch-content">
+            <div class="stretch-title">Difficulty Rating</div>
+            <p>The system prompt instructs the model to include a <code>## Difficulty</code> section with one word: Easy, Medium, or Hard. A regex parses this and displays it color-coded in the metrics row (green / amber / red).</p>
+          </div>
+        </div>
+        <div class="stretch">
+          <div class="stretch-num">3</div>
+          <div class="stretch-content">
+            <div class="stretch-title">Experiment History</div>
+            <p>A "Save to history" button stores each result in-memory as collapsible accordion items, showing grade level, difficulty, supplies used, timestamp, token count, and the full formatted experiment.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Deployment -->
+    <div class="section">
+      <h2>Deployment</h2>
+      <div class="deploy-box">
+        <span class="deploy-icon">🚀</span>
+        <div>
+          <div class="deploy-label">Live URL — GitHub Pages · AIML-1870-2026</div>
+          <div class="deploy-url">https://aiml-1870-2026.github.io/Mayflower/Science-Experiment-Generator/</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- File Structure -->
+    <div class="section">
+      <h2>File Structure</h2>
+      <div class="file-tree">
+        <div class="dir">Science-Experiment-Generator/</div>
+        <div class="main">&nbsp;&nbsp;├── index.html &nbsp;&nbsp;<span class="note">← main app · all HTML, CSS, JS in one file</span></div>
+        <div class="file">&nbsp;&nbsp;├── spec.md &nbsp;&nbsp;&nbsp;&nbsp;<span class="note">← this document (markdown source)</span></div>
+        <div class="file">&nbsp;&nbsp;├── spec.html &nbsp;&nbsp;<span class="note">← this document (styled HTML)</span></div>
+        <div class="dir">&nbsp;&nbsp;└── temp/</div>
+        <div class="file">&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└── llm-switchboard_5.html &nbsp;&nbsp;<span class="note">← reference only · not part of this project</span></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="doc-footer">
+    <span>AIML 1870 · Science Experiment Generator</span>
+    <span>Mayflower · 2026</span>
+  </div>
+
+</div>
+</body>
+</html>
