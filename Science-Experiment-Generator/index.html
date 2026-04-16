@@ -5,274 +5,481 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Science Experiment Generator</title>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 <style>
 :root {
-  --bg: #0e0f11;
-  --surface: #16181c;
-  --surface2: #1e2126;
-  --border: rgba(255,255,255,.07);
-  --border2: rgba(255,255,255,.13);
-  --text: #e8eaed;
-  --muted: #7a8090;
-  --accent: #4f8ef7;
-  --green: #2dd4a0;
-  --amber: #f5a623;
-  --red: #f05252;
-  --mono: 'IBM Plex Mono', monospace;
-  --sans: 'IBM Plex Sans', sans-serif;
-  --radius: 10px;
+  --bg:       #070b18;
+  --surface:  #0d1424;
+  --surface2: #131d32;
+  --surface3: #1a2640;
+  --border:   rgba(255,255,255,.06);
+  --border2:  rgba(255,255,255,.12);
+  --text:     #e2e8f0;
+  --muted:    #64748b;
+  --cyan:     #22d3ee;
+  --purple:   #a78bfa;
+  --amber:    #fbbf24;
+  --green:    #34d399;
+  --red:      #f87171;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Space Grotesk', sans-serif;
+  --radius: 12px;
 }
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; }
-body { font-family: var(--sans); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; }
-
-.shell { display: flex; flex-direction: column; min-height: 100vh; }
-
-/* ── Topbar ── */
-.topbar {
-  display: flex; align-items: center; gap: 16px;
-  padding: 0 24px; height: 56px;
-  border-bottom: 1px solid var(--border);
-  background: var(--surface); flex-shrink: 0;
-  position: sticky; top: 0; z-index: 10;
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--sans); background: var(--bg); color: var(--text);
+  font-size: 14px; line-height: 1.6;
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(34,211,238,.08) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 30% at 80% 80%, rgba(167,139,250,.05) 0%, transparent 50%);
+  min-height: 100vh;
 }
-.logo { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 13px; font-weight: 500; letter-spacing: .08em; }
-.logo-icon { width: 28px; height: 28px; background: linear-gradient(135deg, #2dd4a0, #4f8ef7); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
-.version-tag { font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 4px; background: rgba(45,212,160,.12); color: var(--green); border: 1px solid rgba(45,212,160,.25); letter-spacing: .06em; }
-.status-area { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+/* ── Hero header ── */
+.hero {
+  text-align: center;
+  padding: 56px 24px 40px;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(34,211,238,.06) 0%, transparent 100%);
+  pointer-events: none;
+}
+.hero-badges {
+  display: flex; justify-content: center; gap: 8px;
+  margin-bottom: 20px; flex-wrap: wrap;
+}
+.badge {
+  font-family: var(--mono); font-size: 10px; padding: 3px 10px;
+  border-radius: 20px; letter-spacing: .06em;
+}
+.badge-cyan  { background: rgba(34,211,238,.1);  color: var(--cyan);   border: 1px solid rgba(34,211,238,.25); }
+.badge-purple{ background: rgba(167,139,250,.1); color: var(--purple); border: 1px solid rgba(167,139,250,.25); }
+.badge-amber { background: rgba(251,191,36,.1);  color: var(--amber);  border: 1px solid rgba(251,191,36,.25); }
+
+.hero-icon {
+  font-size: 52px; display: block; margin-bottom: 16px;
+  filter: drop-shadow(0 0 20px rgba(34,211,238,.4));
+  animation: float 4s ease-in-out infinite;
+}
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+
+.hero h1 {
+  font-size: clamp(26px, 5vw, 42px); font-weight: 700;
+  letter-spacing: -.02em; margin-bottom: 10px; line-height: 1.1;
+  background: linear-gradient(135deg, var(--cyan) 0%, var(--purple) 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.hero p {
+  font-size: 15px; color: var(--muted); max-width: 500px; margin: 0 auto 24px;
+}
+.hero-divider {
+  width: 60px; height: 2px; margin: 0 auto;
+  background: linear-gradient(90deg, var(--cyan), var(--purple));
+  border-radius: 2px;
+}
+
+/* ── Status pill ── */
+.status-pill {
+  position: fixed; top: 16px; right: 20px; z-index: 50;
+  display: flex; align-items: center; gap: 7px;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 20px; padding: 5px 12px;
+  font-family: var(--mono); font-size: 11px; color: var(--muted);
+  backdrop-filter: blur(8px);
+}
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); transition: background .3s; }
-.status-dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
-.status-label { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.status-dot.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
 
 /* ── Layout ── */
-.content { flex: 1; padding: 32px 24px; max-width: 800px; margin: 0 auto; width: 100%; }
+.content { max-width: 780px; margin: 0 auto; padding: 0 20px 60px; }
 
 /* ── Cards ── */
-.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; margin-bottom: 16px; }
-.card-title { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
-.card-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 22px 24px; margin-bottom: 16px;
+  position: relative; overflow: hidden;
+}
+.card::before {
+  content: ''; position: absolute; top: 0; left: 0;
+  width: 3px; height: 100%; border-radius: 3px 0 0 3px;
+}
+.card.accent-cyan::before  { background: linear-gradient(180deg, var(--cyan), transparent); }
+.card.accent-purple::before{ background: linear-gradient(180deg, var(--purple), transparent); }
+.card.accent-amber::before { background: linear-gradient(180deg, var(--amber), transparent); }
+.card.accent-green::before { background: linear-gradient(180deg, var(--green), transparent); }
+
+.card-title {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .14em;
+  color: var(--muted); text-transform: uppercase; margin-bottom: 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.card-title-icon { font-size: 14px; }
+.card-title::after { content: ''; flex: 1; height: 1px; background: var(--border2); }
 
 /* ── Form elements ── */
-label { display: block; font-size: 11px; font-family: var(--mono); letter-spacing: .06em; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; }
-input[type=text], textarea, select {
-  width: 100%; background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 7px; color: var(--text); font-family: var(--mono); font-size: 12px;
-  padding: 9px 12px; transition: border-color .15s; outline: none;
+label {
+  display: block; font-size: 11px; font-family: var(--mono);
+  letter-spacing: .06em; color: var(--muted); margin-bottom: 6px; text-transform: uppercase;
 }
-input[type=text]:focus, textarea:focus, select:focus { border-color: rgba(79,142,247,.4); }
-textarea { resize: vertical; line-height: 1.55; }
-select { cursor: pointer; }
+input[type=text], textarea, select {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 8px; color: var(--text); font-family: var(--mono); font-size: 12px;
+  padding: 10px 13px; transition: border-color .2s, box-shadow .2s; outline: none;
+}
+input[type=text]:focus, textarea:focus, select:focus {
+  border-color: rgba(34,211,238,.4);
+  box-shadow: 0 0 0 3px rgba(34,211,238,.06);
+}
+textarea { resize: vertical; line-height: 1.6; }
+select { cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%2364748b' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 12px center; padding-right: 32px;
+}
 select option { background: var(--surface2); }
-.hint { font-size: 11px; color: var(--muted); margin-top: 4px; font-family: var(--mono); }
+.hint { font-size: 11px; color: var(--muted); margin-top: 5px; font-family: var(--mono); line-height: 1.4; }
 
 /* ── Upload ── */
 .upload-area {
-  border: 1px dashed var(--border2); border-radius: 7px;
-  padding: 12px 16px; display: flex; align-items: center; gap: 10px;
-  cursor: pointer; transition: border-color .15s; margin-bottom: 6px;
+  border: 1px dashed rgba(34,211,238,.25); border-radius: 10px;
+  padding: 14px 18px; display: flex; align-items: center; gap: 12px;
+  cursor: pointer; transition: border-color .2s, background .2s; margin-bottom: 8px;
+  background: rgba(34,211,238,.03);
 }
-.upload-area:hover { border-color: var(--accent); }
-.upload-area span { font-size: 12px; color: var(--muted); }
+.upload-area:hover { border-color: var(--cyan); background: rgba(34,211,238,.06); }
+.upload-area .upload-icon { font-size: 20px; }
+.upload-area .upload-text { font-size: 13px; color: var(--muted); flex: 1; }
+.upload-area .upload-text strong { color: var(--text); font-weight: 500; }
 
 /* ── Buttons ── */
-.btn { padding: 8px 18px; border-radius: 7px; border: 1px solid var(--border2); background: transparent; color: var(--text); font-family: var(--sans); font-size: 13px; cursor: pointer; transition: background .15s, transform .1s; white-space: nowrap; }
+.btn {
+  padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border2);
+  background: transparent; color: var(--text); font-family: var(--sans);
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  transition: background .15s, transform .1s, box-shadow .15s; white-space: nowrap;
+}
 .btn:hover { background: var(--surface2); }
 .btn:active { transform: scale(.98); }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
-.btn.primary:hover { background: #3b7de8; }
-.btn.primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-.btn.sm { padding: 5px 11px; font-size: 12px; }
+
+.btn.primary {
+  background: linear-gradient(135deg, var(--cyan), #0ea5e9);
+  border-color: transparent; color: #000; font-weight: 700;
+  font-size: 14px; padding: 11px 28px; border-radius: 10px;
+  box-shadow: 0 0 20px rgba(34,211,238,.3), 0 4px 12px rgba(0,0,0,.3);
+  letter-spacing: .02em;
+}
+.btn.primary:hover {
+  box-shadow: 0 0 30px rgba(34,211,238,.5), 0 4px 16px rgba(0,0,0,.4);
+  transform: translateY(-1px);
+}
+.btn.primary:active { transform: translateY(0) scale(.98); }
+.btn.primary:disabled { opacity: .5; cursor: not-allowed; transform: none; box-shadow: none; }
+
+.btn.sm { padding: 5px 12px; font-size: 12px; }
 .btn.ghost { border-color: transparent; color: var(--muted); }
 .btn.ghost:hover { color: var(--text); background: var(--surface2); }
-.btn.danger-ghost { border-color: transparent; color: var(--red); opacity: .7; }
-.btn.danger-ghost:hover { opacity: 1; background: rgba(240,82,82,.08); }
+.btn.danger-ghost { border-color: transparent; color: var(--red); opacity: .7; font-size: 11px; padding: 4px 10px; }
+.btn.danger-ghost:hover { opacity: 1; background: rgba(248,113,113,.08); }
 
-.actions-row { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-top: 12px; }
+.actions-row { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-top: 14px; }
 
-/* ── STRETCH: Supply chips ── */
-.supply-section { margin-bottom: 14px; }
-.supply-group-label { font-size: 10px; font-family: var(--mono); color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
-.chip-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-.supply-chip {
-  padding: 4px 10px; border-radius: 5px; border: 1px solid var(--border2);
-  background: var(--surface2); color: var(--muted); font-family: var(--mono);
-  font-size: 11px; cursor: pointer; transition: color .15s, border-color .15s, background .15s;
-  user-select: none;
+/* ── Grade selector visual ── */
+.grade-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 6px; }
+.grade-btn {
+  padding: 12px 8px; border-radius: 10px; border: 1px solid var(--border2);
+  background: var(--surface2); color: var(--muted); font-family: var(--sans);
+  font-size: 12px; font-weight: 500; cursor: pointer;
+  transition: all .2s; text-align: center; line-height: 1.3;
 }
-.supply-chip:hover { color: var(--text); border-color: var(--accent); }
-.supply-chip.selected { color: var(--green); border-color: var(--green); background: rgba(45,212,160,.08); }
+.grade-btn .grade-emoji { display: block; font-size: 20px; margin-bottom: 4px; }
+.grade-btn .grade-label { display: block; color: var(--text); font-size: 13px; font-weight: 600; }
+.grade-btn .grade-sub { display: block; font-size: 10px; font-family: var(--mono); margin-top: 2px; }
+.grade-btn:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(34,211,238,.05); }
+.grade-btn.active {
+  border-color: var(--cyan); color: var(--cyan);
+  background: rgba(34,211,238,.08);
+  box-shadow: 0 0 12px rgba(34,211,238,.15);
+}
 
-/* ── Result area ── */
+/* ── Supply chips ── */
+.supply-section { margin-bottom: 16px; }
+.supply-group { margin-bottom: 12px; }
+.supply-group-header {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-family: var(--mono); letter-spacing: .08em;
+  text-transform: uppercase; margin-bottom: 7px;
+}
+.group-dot { width: 6px; height: 6px; border-radius: 50%; }
+.group-amber .group-dot { background: var(--amber); }
+.group-purple .group-dot { background: var(--purple); }
+.group-cyan  .group-dot { background: var(--cyan); }
+.group-amber .supply-group-header { color: var(--amber); }
+.group-purple .supply-group-header { color: var(--purple); }
+.group-cyan  .supply-group-header { color: var(--cyan); }
+
+.chip-grid { display: flex; flex-wrap: wrap; gap: 6px; }
+.supply-chip {
+  padding: 5px 11px; border-radius: 20px; font-family: var(--mono);
+  font-size: 11px; cursor: pointer; user-select: none;
+  transition: all .15s; border: 1px solid;
+}
+.group-amber .supply-chip { border-color: rgba(251,191,36,.2); color: #9a7a20; background: rgba(251,191,36,.05); }
+.group-amber .supply-chip:hover { border-color: var(--amber); color: var(--amber); background: rgba(251,191,36,.1); }
+.group-amber .supply-chip.selected { border-color: var(--amber); color: var(--amber); background: rgba(251,191,36,.15); box-shadow: 0 0 8px rgba(251,191,36,.2); }
+.group-purple .supply-chip { border-color: rgba(167,139,250,.2); color: #7057a0; background: rgba(167,139,250,.05); }
+.group-purple .supply-chip:hover { border-color: var(--purple); color: var(--purple); background: rgba(167,139,250,.1); }
+.group-purple .supply-chip.selected { border-color: var(--purple); color: var(--purple); background: rgba(167,139,250,.15); box-shadow: 0 0 8px rgba(167,139,250,.2); }
+.group-cyan .supply-chip { border-color: rgba(34,211,238,.2); color: #1e7a8a; background: rgba(34,211,238,.05); }
+.group-cyan .supply-chip:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(34,211,238,.1); }
+.group-cyan .supply-chip.selected { border-color: var(--cyan); color: var(--cyan); background: rgba(34,211,238,.15); box-shadow: 0 0 8px rgba(34,211,238,.2); }
+
+/* ── Result card ── */
 .result-card { display: none; }
 .result-card.visible { display: block; }
+.result-card.visible .card {
+  border-color: rgba(34,211,238,.2);
+  box-shadow: 0 0 30px rgba(34,211,238,.06), 0 0 0 1px rgba(34,211,238,.05);
+}
 
 .response-rendered {
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 7px; padding: 18px 20px;
-  line-height: 1.75; color: var(--text); min-height: 80px;
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 10px; padding: 20px 22px;
+  line-height: 1.8; color: var(--text); min-height: 80px;
 }
-.response-rendered.loading { color: var(--muted); animation: pulse 1.2s ease-in-out infinite; }
-.response-rendered.error-state { color: var(--red); border-color: rgba(240,82,82,.3); font-family: var(--mono); font-size: 12px; }
-.response-rendered h1, .response-rendered h2, .response-rendered h3 { color: var(--text); margin: 16px 0 8px; font-family: var(--sans); }
-.response-rendered h1 { font-size: 18px; }
-.response-rendered h2 { font-size: 16px; color: var(--green); }
-.response-rendered h3 { font-size: 14px; color: var(--accent); }
+.response-rendered.loading {
+  color: var(--muted); font-family: var(--mono); font-size: 13px;
+  animation: pulse 1.4s ease-in-out infinite;
+  display: flex; align-items: center; gap: 10px;
+}
+.response-rendered.loading::before { content: '⚗️'; font-size: 18px; }
+.response-rendered.error-state { color: var(--red); border-color: rgba(248,113,113,.3); font-family: var(--mono); font-size: 12px; }
+.response-rendered h1, .response-rendered h2, .response-rendered h3 { margin: 18px 0 8px; font-family: var(--sans); }
+.response-rendered h1 { font-size: 20px; font-weight: 700; color: var(--text); }
+.response-rendered h2 { font-size: 16px; font-weight: 600; color: var(--cyan); border-bottom: 1px solid rgba(34,211,238,.15); padding-bottom: 4px; }
+.response-rendered h3 { font-size: 14px; font-weight: 600; color: var(--purple); }
 .response-rendered p { margin-bottom: 10px; }
-.response-rendered ul, .response-rendered ol { padding-left: 20px; margin-bottom: 10px; }
-.response-rendered li { margin-bottom: 4px; }
+.response-rendered ul, .response-rendered ol { padding-left: 22px; margin-bottom: 12px; }
+.response-rendered li { margin-bottom: 6px; }
+.response-rendered ol li { counter-increment: none; }
 .response-rendered strong { color: #fff; }
-.response-rendered code { font-family: var(--mono); background: var(--bg); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
-.response-rendered hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+.response-rendered em { color: var(--muted); }
+.response-rendered code { font-family: var(--mono); background: var(--bg); padding: 2px 6px; border-radius: 4px; font-size: 12px; color: var(--cyan); }
+.response-rendered hr { border: none; border-top: 1px solid var(--border2); margin: 16px 0; }
+.response-rendered blockquote { border-left: 3px solid var(--amber); padding-left: 14px; color: var(--amber); margin: 10px 0; font-style: italic; }
 
 /* ── Metrics ── */
-.metric-row { display: flex; gap: 10px; margin-top: 12px; }
-.metric { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px; text-align: center; }
-.metric .val { font-family: var(--mono); font-size: 18px; font-weight: 500; color: var(--accent); }
-.metric .lbl { font-size: 10px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; font-family: var(--mono); margin-top: 3px; }
-
-/* STRETCH: difficulty badge colors */
-.difficulty-easy { color: var(--green) !important; }
-.difficulty-medium { color: var(--amber) !important; }
-.difficulty-hard { color: var(--red) !important; }
-
-/* ── STRETCH: History ── */
-.history-item {
-  background: var(--surface2); border: 1px solid var(--border);
-  border-radius: 8px; margin-bottom: 8px; overflow: hidden;
+.metric-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 16px; }
+.metric {
+  background: var(--surface3); border: 1px solid var(--border2);
+  border-radius: 10px; padding: 12px; text-align: center;
 }
+.metric .val { font-family: var(--mono); font-size: 17px; font-weight: 700; }
+.metric .lbl { font-size: 9px; letter-spacing: .1em; color: var(--muted); text-transform: uppercase; font-family: var(--mono); margin-top: 4px; }
+.metric:nth-child(1) .val { color: var(--cyan); }
+.metric:nth-child(2) .val { color: var(--purple); }
+.metric:nth-child(3) .val { color: var(--amber); }
+.difficulty-easy   { color: var(--green)  !important; }
+.difficulty-medium { color: var(--amber)  !important; }
+.difficulty-hard   { color: var(--red)    !important; }
+
+/* ── History ── */
+.history-item {
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: 10px; margin-bottom: 10px; overflow: hidden;
+  transition: border-color .2s;
+}
+.history-item:hover { border-color: rgba(167,139,250,.3); }
 .history-header {
   display: flex; align-items: center; gap: 10px;
-  padding: 10px 14px; cursor: pointer;
-  transition: background .15s;
+  padding: 12px 16px; cursor: pointer; transition: background .15s;
 }
-.history-header:hover { background: rgba(255,255,255,.03); }
-.history-title { font-size: 13px; font-weight: 500; flex: 1; }
-.history-meta { font-family: var(--mono); font-size: 10px; color: var(--muted); }
-.history-body { display: none; padding: 14px 16px; border-top: 1px solid var(--border); }
+.history-header:hover { background: rgba(255,255,255,.02); }
+.history-grade-badge {
+  font-family: var(--mono); font-size: 10px; padding: 3px 8px;
+  border-radius: 5px; background: rgba(167,139,250,.12);
+  color: var(--purple); border: 1px solid rgba(167,139,250,.2); white-space: nowrap;
+}
+.history-title { font-size: 13px; font-weight: 600; flex: 1; }
+.history-meta { font-family: var(--mono); font-size: 10px; color: var(--muted); white-space: nowrap; }
+.history-body { display: none; padding: 16px; border-top: 1px solid var(--border2); }
 .history-body.open { display: block; }
-.history-body .response-rendered { margin: 0; }
-.empty-state { text-align: center; padding: 24px; color: var(--muted); font-size: 13px; }
-.empty-state .icon { font-size: 24px; margin-bottom: 8px; }
+.supplies-row { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+.supplies-row strong { color: var(--cyan); font-weight: 400; }
 
-@keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }
+.empty-state { text-align: center; padding: 32px; color: var(--muted); font-size: 13px; }
+.empty-state .icon { font-size: 32px; margin-bottom: 10px; display: block; opacity: .5; }
+
+@keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+
+/* ── File status ── */
+#file-status { margin-left: auto; font-family: var(--mono); font-size: 11px; color: var(--green); }
+
+/* responsive */
+@media (max-width: 540px) {
+  .grade-grid { grid-template-columns: repeat(2,1fr); }
+  .metric-row { grid-template-columns: repeat(2,1fr); }
+}
 </style>
 </head>
 <body>
-<div class="shell">
 
-  <!-- Topbar -->
-  <div class="topbar">
-    <div class="logo">
-      <div class="logo-icon">🔬</div>
-      SCIENCE EXPERIMENT GENERATOR
+<!-- Fixed status pill -->
+<div class="status-pill">
+  <div class="status-dot" id="status-dot"></div>
+  <span id="status-label">no key</span>
+</div>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-badges">
+    <span class="badge badge-cyan">OpenAI · gpt-4o</span>
+    <span class="badge badge-purple">Free-text · Markdown</span>
+    <span class="badge badge-amber">Static · No server</span>
+  </div>
+  <span class="hero-icon">🔬</span>
+  <h1>Science Experiment Generator</h1>
+  <p>Pick your grade level, select your supplies, and get a complete experiment — instantly.</p>
+  <div class="hero-divider"></div>
+</div>
+
+<div class="content">
+
+  <!-- API Key -->
+  <div class="card accent-cyan">
+    <div class="card-title"><span class="card-title-icon">🔑</span> API Key</div>
+    <input type="file" id="env-file" accept=".env,.csv" style="display:none" onchange="loadEnvFile(event)"/>
+    <div class="upload-area" onclick="document.getElementById('env-file').click()">
+      <span class="upload-icon">📂</span>
+      <span class="upload-text">Upload your <strong>.env file</strong> — we'll read <strong>OPENAI_API_KEY</strong> automatically</span>
+      <span id="file-status"></span>
     </div>
-    <span class="version-tag">v2.0</span>
-    <div class="status-area">
-      <span class="status-label" id="status-label">no key</span>
-      <div class="status-dot" id="status-dot"></div>
+    <div class="hint">// key held in memory only — never written to disk, localStorage, or any server</div>
+  </div>
+
+  <!-- Parameters -->
+  <div class="card accent-purple">
+    <div class="card-title"><span class="card-title-icon">⚙️</span> Experiment Parameters</div>
+
+    <!-- Grade level visual selector -->
+    <div style="margin-bottom:20px">
+      <label>Grade Level</label>
+      <div class="grade-grid" id="grade-grid">
+        <button class="grade-btn" data-grade="K-2"  onclick="selectGrade(this)">
+          <span class="grade-emoji">🌱</span>
+          <span class="grade-label">K–2</span>
+          <span class="grade-sub">Ages 5–8</span>
+        </button>
+        <button class="grade-btn" data-grade="3-5"  onclick="selectGrade(this)">
+          <span class="grade-emoji">🌿</span>
+          <span class="grade-label">3–5</span>
+          <span class="grade-sub">Ages 8–11</span>
+        </button>
+        <button class="grade-btn active" data-grade="6-8" onclick="selectGrade(this)">
+          <span class="grade-emoji">🌲</span>
+          <span class="grade-label">6–8</span>
+          <span class="grade-sub">Ages 11–14</span>
+        </button>
+        <button class="grade-btn" data-grade="9-12" onclick="selectGrade(this)">
+          <span class="grade-emoji">🔭</span>
+          <span class="grade-label">9–12</span>
+          <span class="grade-sub">Ages 14–18</span>
+        </button>
+      </div>
+      <input type="hidden" id="grade-level" value="6-8"/>
+      <div class="hint">// sets vocabulary, complexity, and safety requirements</div>
+    </div>
+
+    <!-- Quick supply selector -->
+    <div class="supply-section">
+      <label>Quick Supply Selector <span style="text-transform:none;letter-spacing:0;font-size:10px;color:var(--muted)">(click to add)</span></label>
+
+      <div class="supply-group group-amber">
+        <div class="supply-group-header"><span class="group-dot"></span>Kitchen</div>
+        <div class="chip-grid" id="chips-kitchen"></div>
+      </div>
+      <div class="supply-group group-purple">
+        <div class="supply-group-header"><span class="group-dot"></span>Craft &amp; Office</div>
+        <div class="chip-grid" id="chips-craft"></div>
+      </div>
+      <div class="supply-group group-cyan">
+        <div class="supply-group-header"><span class="group-dot"></span>Science &amp; Outdoor</div>
+        <div class="chip-grid" id="chips-science"></div>
+      </div>
+    </div>
+
+    <!-- Supplies textarea -->
+    <div style="margin-bottom:8px">
+      <label>Your Supplies <span style="text-transform:none;letter-spacing:0;font-size:10px;color:var(--muted)">(edit freely)</span></label>
+      <textarea id="supplies" rows="3" placeholder="Chips above will appear here, or type your own supplies..."></textarea>
+      <div class="hint">// the model picks the best subset — you don't have to use everything</div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:2px">
+      <button class="btn ghost sm" onclick="clearSupplies()">Clear all</button>
+    </div>
+
+    <div class="actions-row">
+      <button class="btn primary" id="generate-btn" onclick="generateExperiment()">
+        ⚗️ &nbsp;Generate Experiment
+      </button>
     </div>
   </div>
 
-  <div class="content">
-
-    <!-- API Key Card -->
-    <div class="card">
-      <div class="card-title">API Key</div>
-      <input type="file" id="env-file" accept=".env,.csv" style="display:none" onchange="loadEnvFile(event)"/>
-      <div class="upload-area" onclick="document.getElementById('env-file').click()">
-        <span style="font-size:16px">📂</span>
-        <span>Upload .env file — reads <span style="color:var(--text);font-family:var(--mono)">OPENAI_API_KEY</span> automatically</span>
-        <span id="file-status" style="margin-left:auto;color:var(--green);font-size:11px;font-family:var(--mono)"></span>
-      </div>
-      <div class="hint">// key held in memory only — never written to disk, localStorage, or any server</div>
-    </div>
-
-    <!-- Inputs Card -->
-    <div class="card">
-      <div class="card-title">Experiment Parameters</div>
-
-      <!-- Grade level -->
-      <div style="margin-bottom:18px">
-        <label>Grade Level</label>
-        <select id="grade-level">
-          <option value="K-2">K–2 (Kindergarten–2nd Grade)</option>
-          <option value="3-5">3–5 (3rd–5th Grade)</option>
-          <option value="6-8" selected>6–8 (6th–8th Grade)</option>
-          <option value="9-12">9–12 (9th–12th Grade)</option>
-        </select>
-        <div class="hint">// sets vocabulary, complexity, and safety requirements</div>
-      </div>
-
-      <!-- STRETCH: Quick supply selector -->
-      <div class="supply-section">
-        <label>Quick Supply Selector <span style="text-transform:none;letter-spacing:0;font-size:10px;color:var(--muted)">(click to add to your list)</span></label>
-        <div class="supply-group-label">Kitchen</div>
-        <div class="chip-grid" id="chips-kitchen"></div>
-        <div class="supply-group-label">Craft &amp; Office</div>
-        <div class="chip-grid" id="chips-craft"></div>
-        <div class="supply-group-label">Science &amp; Outdoor</div>
-        <div class="chip-grid" id="chips-science"></div>
-      </div>
-
-      <!-- Supplies text area -->
-      <div style="margin-bottom:6px">
-        <label>Your Supplies <span style="text-transform:none;letter-spacing:0;font-size:10px;color:var(--muted)">(edit freely)</span></label>
-        <textarea id="supplies" rows="3" placeholder="Chips above will appear here, or type your own supplies..."></textarea>
-        <div class="hint">// list all available materials — the model will use a subset that makes a good experiment</div>
-      </div>
-      <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
-        <button class="btn ghost sm" onclick="clearSupplies()">Clear supplies</button>
-      </div>
-
-      <div class="actions-row">
-        <button class="btn primary" id="generate-btn" onclick="generateExperiment()">Generate Experiment →</button>
-      </div>
-    </div>
-
-    <!-- Result Card -->
-    <div class="card result-card" id="result-card">
+  <!-- Result -->
+  <div class="result-card" id="result-card">
+    <div class="card accent-cyan">
       <div class="card-title">
-        Your Experiment
-        <span id="result-meta" style="font-weight:400;text-transform:none;letter-spacing:0;font-family:var(--mono);font-size:10px;color:var(--accent)"></span>
+        <span class="card-title-icon">🧪</span> Your Experiment
+        <span id="result-meta" style="font-weight:400;text-transform:none;letter-spacing:0;font-family:var(--mono);font-size:10px;color:var(--cyan)"></span>
       </div>
       <div class="response-rendered" id="result-output"></div>
       <div class="metric-row">
         <div class="metric"><div class="val" id="m-time">—</div><div class="lbl">Response time</div></div>
         <div class="metric"><div class="val" id="m-tokens">—</div><div class="lbl">Tokens used</div></div>
         <div class="metric"><div class="val" id="m-grade">—</div><div class="lbl">Grade level</div></div>
-        <!-- STRETCH: difficulty metric -->
         <div class="metric"><div class="val" id="m-difficulty">—</div><div class="lbl">Difficulty</div></div>
       </div>
-      <div class="actions-row" style="margin-top:10px">
-        <button class="btn ghost sm" onclick="saveToHistory()">Save to history</button>
+      <div class="actions-row" style="margin-top:12px">
+        <button class="btn ghost sm" onclick="saveToHistory()">📋 Save to history</button>
       </div>
     </div>
-
-    <!-- STRETCH: History Card -->
-    <div class="card" id="history-card">
-      <div class="card-title">
-        Saved Experiments
-        <span id="history-count" style="font-weight:400;text-transform:none;letter-spacing:0;font-family:var(--mono);font-size:10px;color:var(--accent)"></span>
-      </div>
-      <div id="history-list">
-        <div class="empty-state">
-          <div class="icon">📋</div>
-          No experiments saved yet.<br>Generate one and click "Save to history".
-        </div>
-      </div>
-    </div>
-
   </div>
+
+  <!-- History -->
+  <div class="card accent-green">
+    <div class="card-title">
+      <span class="card-title-icon">📚</span> Saved Experiments
+      <span id="history-count" style="font-weight:400;text-transform:none;letter-spacing:0;font-family:var(--mono);font-size:10px;color:var(--green)"></span>
+    </div>
+    <div id="history-list">
+      <div class="empty-state">
+        <span class="icon">🧫</span>
+        No experiments saved yet.<br>Generate one and click "Save to history".
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>
 /* ── State ── */
 let apiKey = '';
+let selectedGrade = '6-8';
 let lastResult = null;
 let history = [];
 
-/* ── STRETCH: Supply chip data ── */
+/* ── Grade selector ── */
+function selectGrade(btn) {
+  document.querySelectorAll('.grade-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedGrade = btn.dataset.grade;
+}
+
+/* ── Supply chip data ── */
 const SUPPLIES = {
   kitchen: [
     'baking soda','vinegar','salt','sugar','water','dish soap',
@@ -327,7 +534,7 @@ function clearSupplies() {
   document.getElementById('supplies').value = '';
 }
 
-/* ── .env file loader (in-memory only) ── */
+/* ── .env loader (in-memory only) ── */
 function loadEnvFile(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -347,7 +554,7 @@ function loadEnvFile(e) {
   reader.readAsText(file);
 }
 
-/* ── STRETCH: parse difficulty from model text ── */
+/* ── Parse difficulty from model text ── */
 function parseDifficulty(text) {
   const m = text.match(/\*{0,2}Difficulty\*{0,2}[:\s]+([A-Za-z]+)/i);
   return m ? m[1].trim() : null;
@@ -359,7 +566,7 @@ async function generateExperiment() {
     alert('Please upload a .env file with OPENAI_API_KEY first.');
     return;
   }
-  const grade = document.getElementById('grade-level').value;
+  const grade = selectedGrade;
   const supplies = document.getElementById('supplies').value.trim();
   if (!supplies) {
     alert('Please select or enter some available supplies.');
@@ -408,13 +615,9 @@ Requirements:
   try {
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + apiKey
-      },
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
       body: JSON.stringify({
-        model: 'gpt-4o',
-        max_tokens: 1400,
+        model: 'gpt-4o', max_tokens: 1400,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -435,7 +638,6 @@ Requirements:
     output.className = 'response-rendered';
     output.innerHTML = marked.parse(text);
 
-    // STRETCH: difficulty display
     const diff = parseDifficulty(text);
     const diffEl = document.getElementById('m-difficulty');
     diffEl.textContent = diff || '—';
@@ -450,6 +652,7 @@ Requirements:
     document.getElementById('m-grade').textContent = grade;
 
     lastResult = { grade, supplies, text, tokens, elapsed, diff, timestamp: new Date() };
+    resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   } catch (err) {
     output.className = 'response-rendered error-state';
@@ -457,15 +660,16 @@ Requirements:
     lastResult = null;
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Generate Experiment →';
+    btn.innerHTML = '⚗️ &nbsp;Generate Experiment';
   }
 }
 
-/* ── STRETCH: History ── */
+/* ── History ── */
 function saveToHistory() {
   if (!lastResult) return;
   history.unshift({ ...lastResult });
   renderHistory();
+  document.getElementById('history-list').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function renderHistory() {
@@ -474,26 +678,25 @@ function renderHistory() {
   count.textContent = history.length ? `(${history.length})` : '';
 
   if (!history.length) {
-    list.innerHTML = '<div class="empty-state"><div class="icon">📋</div>No experiments saved yet.<br>Generate one and click "Save to history".</div>';
+    list.innerHTML = '<div class="empty-state"><span class="icon">🧫</span>No experiments saved yet.<br>Generate one and click "Save to history".</div>';
     return;
   }
 
   list.innerHTML = history.map((entry, i) => {
     const ts = entry.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const label = entry.diff ? ` · ${entry.diff}` : '';
+    const diff = entry.diff || '';
+    const diffColor = diff.toLowerCase() === 'easy' ? 'var(--green)' : diff.toLowerCase() === 'hard' ? 'var(--red)' : 'var(--amber)';
     return `
       <div class="history-item">
         <div class="history-header" onclick="toggleHistory(${i})">
-          <span style="font-size:16px">🧪</span>
-          <span class="history-title">Grade ${entry.grade} Experiment${label}</span>
+          <span style="font-size:18px">🧪</span>
+          <span class="history-grade-badge">Grade ${entry.grade}</span>
+          <span class="history-title" style="margin-left:4px">${diff ? `<span style="color:${diffColor};font-size:12px">${diff}</span>` : ''}</span>
           <span class="history-meta">${ts} · ${entry.tokens} tokens</span>
-          <button class="btn ghost sm" style="margin-left:8px" onclick="event.stopPropagation();deleteHistory(${i})">Remove</button>
+          <button class="btn danger-ghost" style="margin-left:6px" onclick="event.stopPropagation();deleteHistory(${i})">Remove</button>
         </div>
         <div class="history-body" id="hist-body-${i}">
-          <div style="margin-bottom:10px">
-            <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">Supplies used: </span>
-            <span style="font-family:var(--mono);font-size:11px;color:var(--text)">${entry.supplies}</span>
-          </div>
+          <div class="supplies-row">Supplies: <strong>${entry.supplies}</strong></div>
           <div class="response-rendered">${marked.parse(entry.text)}</div>
         </div>
       </div>`;
@@ -501,8 +704,7 @@ function renderHistory() {
 }
 
 function toggleHistory(i) {
-  const body = document.getElementById(`hist-body-${i}`);
-  body.classList.toggle('open');
+  document.getElementById(`hist-body-${i}`).classList.toggle('open');
 }
 
 function deleteHistory(i) {
