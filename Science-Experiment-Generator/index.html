@@ -29,27 +29,31 @@ body { font-family: var(--sans); background: var(--bg); color: var(--text); font
 
 .shell { display: flex; flex-direction: column; min-height: 100vh; }
 
+/* ── Topbar ── */
 .topbar {
   display: flex; align-items: center; gap: 16px;
   padding: 0 24px; height: 56px;
   border-bottom: 1px solid var(--border);
   background: var(--surface); flex-shrink: 0;
+  position: sticky; top: 0; z-index: 10;
 }
 .logo { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 13px; font-weight: 500; letter-spacing: .08em; }
 .logo-icon { width: 28px; height: 28px; background: linear-gradient(135deg, #2dd4a0, #4f8ef7); border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 15px; }
 .version-tag { font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 4px; background: rgba(45,212,160,.12); color: var(--green); border: 1px solid rgba(45,212,160,.25); letter-spacing: .06em; }
-
 .status-area { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); transition: background .3s; }
 .status-dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
 .status-label { font-family: var(--mono); font-size: 11px; color: var(--muted); }
 
-.content { flex: 1; padding: 32px 24px; max-width: 780px; margin: 0 auto; width: 100%; }
+/* ── Layout ── */
+.content { flex: 1; padding: 32px 24px; max-width: 800px; margin: 0 auto; width: 100%; }
 
+/* ── Cards ── */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; margin-bottom: 16px; }
 .card-title { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--muted); text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
 .card-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
+/* ── Form elements ── */
 label { display: block; font-size: 11px; font-family: var(--mono); letter-spacing: .06em; color: var(--muted); margin-bottom: 5px; text-transform: uppercase; }
 input[type=text], textarea, select {
   width: 100%; background: var(--surface2); border: 1px solid var(--border);
@@ -60,9 +64,9 @@ input[type=text]:focus, textarea:focus, select:focus { border-color: rgba(79,142
 textarea { resize: vertical; line-height: 1.55; }
 select { cursor: pointer; }
 select option { background: var(--surface2); }
-
 .hint { font-size: 11px; color: var(--muted); margin-top: 4px; font-family: var(--mono); }
 
+/* ── Upload ── */
 .upload-area {
   border: 1px dashed var(--border2); border-radius: 7px;
   padding: 12px 16px; display: flex; align-items: center; gap: 10px;
@@ -71,31 +75,46 @@ select option { background: var(--surface2); }
 .upload-area:hover { border-color: var(--accent); }
 .upload-area span { font-size: 12px; color: var(--muted); }
 
+/* ── Buttons ── */
 .btn { padding: 8px 18px; border-radius: 7px; border: 1px solid var(--border2); background: transparent; color: var(--text); font-family: var(--sans); font-size: 13px; cursor: pointer; transition: background .15s, transform .1s; white-space: nowrap; }
 .btn:hover { background: var(--surface2); }
 .btn:active { transform: scale(.98); }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
 .btn.primary:hover { background: #3b7de8; }
 .btn.primary:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+.btn.sm { padding: 5px 11px; font-size: 12px; }
+.btn.ghost { border-color: transparent; color: var(--muted); }
+.btn.ghost:hover { color: var(--text); background: var(--surface2); }
+.btn.danger-ghost { border-color: transparent; color: var(--red); opacity: .7; }
+.btn.danger-ghost:hover { opacity: 1; background: rgba(240,82,82,.08); }
 
 .actions-row { display: flex; align-items: center; gap: 8px; justify-content: flex-end; margin-top: 12px; }
 
-/* Result area */
+/* ── STRETCH: Supply chips ── */
+.supply-section { margin-bottom: 14px; }
+.supply-group-label { font-size: 10px; font-family: var(--mono); color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+.chip-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.supply-chip {
+  padding: 4px 10px; border-radius: 5px; border: 1px solid var(--border2);
+  background: var(--surface2); color: var(--muted); font-family: var(--mono);
+  font-size: 11px; cursor: pointer; transition: color .15s, border-color .15s, background .15s;
+  user-select: none;
+}
+.supply-chip:hover { color: var(--text); border-color: var(--accent); }
+.supply-chip.selected { color: var(--green); border-color: var(--green); background: rgba(45,212,160,.08); }
+
+/* ── Result area ── */
 .result-card { display: none; }
 .result-card.visible { display: block; }
 
 .response-rendered {
   background: var(--surface2); border: 1px solid var(--border);
   border-radius: 7px; padding: 18px 20px;
-  line-height: 1.75; color: var(--text);
-  min-height: 80px;
+  line-height: 1.75; color: var(--text); min-height: 80px;
 }
 .response-rendered.loading { color: var(--muted); animation: pulse 1.2s ease-in-out infinite; }
 .response-rendered.error-state { color: var(--red); border-color: rgba(240,82,82,.3); font-family: var(--mono); font-size: 12px; }
-
-.response-rendered h1, .response-rendered h2, .response-rendered h3 {
-  color: var(--text); margin: 16px 0 8px; font-family: var(--sans);
-}
+.response-rendered h1, .response-rendered h2, .response-rendered h3 { color: var(--text); margin: 16px 0 8px; font-family: var(--sans); }
 .response-rendered h1 { font-size: 18px; }
 .response-rendered h2 { font-size: 16px; color: var(--green); }
 .response-rendered h3 { font-size: 14px; color: var(--accent); }
@@ -106,10 +125,35 @@ select option { background: var(--surface2); }
 .response-rendered code { font-family: var(--mono); background: var(--bg); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 .response-rendered hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
 
+/* ── Metrics ── */
 .metric-row { display: flex; gap: 10px; margin-top: 12px; }
 .metric { flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px; text-align: center; }
 .metric .val { font-family: var(--mono); font-size: 18px; font-weight: 500; color: var(--accent); }
 .metric .lbl { font-size: 10px; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; font-family: var(--mono); margin-top: 3px; }
+
+/* STRETCH: difficulty badge colors */
+.difficulty-easy { color: var(--green) !important; }
+.difficulty-medium { color: var(--amber) !important; }
+.difficulty-hard { color: var(--red) !important; }
+
+/* ── STRETCH: History ── */
+.history-item {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; margin-bottom: 8px; overflow: hidden;
+}
+.history-header {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; cursor: pointer;
+  transition: background .15s;
+}
+.history-header:hover { background: rgba(255,255,255,.03); }
+.history-title { font-size: 13px; font-weight: 500; flex: 1; }
+.history-meta { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.history-body { display: none; padding: 14px 16px; border-top: 1px solid var(--border); }
+.history-body.open { display: block; }
+.history-body .response-rendered { margin: 0; }
+.empty-state { text-align: center; padding: 24px; color: var(--muted); font-size: 13px; }
+.empty-state .icon { font-size: 24px; margin-bottom: 8px; }
 
 @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }
 </style>
@@ -117,12 +161,13 @@ select option { background: var(--surface2); }
 <body>
 <div class="shell">
 
+  <!-- Topbar -->
   <div class="topbar">
     <div class="logo">
       <div class="logo-icon">🔬</div>
       SCIENCE EXPERIMENT GENERATOR
     </div>
-    <span class="version-tag">v1.0</span>
+    <span class="version-tag">v2.0</span>
     <div class="status-area">
       <span class="status-label" id="status-label">no key</span>
       <div class="status-dot" id="status-dot"></div>
@@ -137,17 +182,18 @@ select option { background: var(--surface2); }
       <input type="file" id="env-file" accept=".env,.csv" style="display:none" onchange="loadEnvFile(event)"/>
       <div class="upload-area" onclick="document.getElementById('env-file').click()">
         <span style="font-size:16px">📂</span>
-        <span>Upload .env file — reads OPENAI_API_KEY automatically</span>
+        <span>Upload .env file — reads <span style="color:var(--text);font-family:var(--mono)">OPENAI_API_KEY</span> automatically</span>
         <span id="file-status" style="margin-left:auto;color:var(--green);font-size:11px;font-family:var(--mono)"></span>
       </div>
-      <div class="hint">// key stored in memory only — never written to disk or transmitted beyond the API call</div>
+      <div class="hint">// key held in memory only — never written to disk, localStorage, or any server</div>
     </div>
 
     <!-- Inputs Card -->
     <div class="card">
       <div class="card-title">Experiment Parameters</div>
 
-      <div style="margin-bottom:14px">
+      <!-- Grade level -->
+      <div style="margin-bottom:18px">
         <label>Grade Level</label>
         <select id="grade-level">
           <option value="K-2">K–2 (Kindergarten–2nd Grade)</option>
@@ -155,13 +201,28 @@ select option { background: var(--surface2); }
           <option value="6-8" selected>6–8 (6th–8th Grade)</option>
           <option value="9-12">9–12 (9th–12th Grade)</option>
         </select>
-        <div class="hint">// selects vocabulary, complexity, and safety level of the experiment</div>
+        <div class="hint">// sets vocabulary, complexity, and safety requirements</div>
       </div>
 
-      <div>
-        <label>Available Supplies</label>
-        <textarea id="supplies" rows="4" placeholder="e.g. baking soda, vinegar, food coloring, balloons, string, measuring cups, plastic bottles..."></textarea>
-        <div class="hint">// list materials you have on hand, separated by commas or new lines</div>
+      <!-- STRETCH: Quick supply selector -->
+      <div class="supply-section">
+        <label>Quick Supply Selector <span style="text-transform:none;letter-spacing:0;font-size:10px;color:var(--muted)">(click to add to your list)</span></label>
+        <div class="supply-group-label">Kitchen</div>
+        <div class="chip-grid" id="chips-kitchen"></div>
+        <div class="supply-group-label">Craft &amp; Office</div>
+        <div class="chip-grid" id="chips-craft"></div>
+        <div class="supply-group-label">Science &amp; Outdoor</div>
+        <div class="chip-grid" id="chips-science"></div>
+      </div>
+
+      <!-- Supplies text area -->
+      <div style="margin-bottom:6px">
+        <label>Your Supplies <span style="text-transform:none;letter-spacing:0;font-size:10px;color:var(--muted)">(edit freely)</span></label>
+        <textarea id="supplies" rows="3" placeholder="Chips above will appear here, or type your own supplies..."></textarea>
+        <div class="hint">// list all available materials — the model will use a subset that makes a good experiment</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
+        <button class="btn ghost sm" onclick="clearSupplies()">Clear supplies</button>
       </div>
 
       <div class="actions-row">
@@ -180,6 +241,25 @@ select option { background: var(--surface2); }
         <div class="metric"><div class="val" id="m-time">—</div><div class="lbl">Response time</div></div>
         <div class="metric"><div class="val" id="m-tokens">—</div><div class="lbl">Tokens used</div></div>
         <div class="metric"><div class="val" id="m-grade">—</div><div class="lbl">Grade level</div></div>
+        <!-- STRETCH: difficulty metric -->
+        <div class="metric"><div class="val" id="m-difficulty">—</div><div class="lbl">Difficulty</div></div>
+      </div>
+      <div class="actions-row" style="margin-top:10px">
+        <button class="btn ghost sm" onclick="saveToHistory()">Save to history</button>
+      </div>
+    </div>
+
+    <!-- STRETCH: History Card -->
+    <div class="card" id="history-card">
+      <div class="card-title">
+        Saved Experiments
+        <span id="history-count" style="font-weight:400;text-transform:none;letter-spacing:0;font-family:var(--mono);font-size:10px;color:var(--accent)"></span>
+      </div>
+      <div id="history-list">
+        <div class="empty-state">
+          <div class="icon">📋</div>
+          No experiments saved yet.<br>Generate one and click "Save to history".
+        </div>
       </div>
     </div>
 
@@ -187,8 +267,67 @@ select option { background: var(--surface2); }
 </div>
 
 <script>
+/* ── State ── */
 let apiKey = '';
+let lastResult = null;
+let history = [];
 
+/* ── STRETCH: Supply chip data ── */
+const SUPPLIES = {
+  kitchen: [
+    'baking soda','vinegar','salt','sugar','water','dish soap',
+    'food coloring','lemon juice','milk','cooking oil','cornstarch',
+    'ice','measuring cups','spoons','plastic bottles','cups'
+  ],
+  craft: [
+    'balloons','string','tape','scissors','paper clips','rubber bands',
+    'aluminum foil','plastic bags','paper towels','cardboard',
+    'markers','index cards','cotton balls'
+  ],
+  science: [
+    'magnifying glass','flashlight','mirror','soil','seeds',
+    'pennies','celery','red cabbage','sand','ruler','stopwatch'
+  ]
+};
+
+const selectedChips = new Set();
+
+function buildChips() {
+  const groups = { kitchen: 'chips-kitchen', craft: 'chips-craft', science: 'chips-science' };
+  Object.entries(groups).forEach(([group, id]) => {
+    const container = document.getElementById(id);
+    SUPPLIES[group].forEach(item => {
+      const chip = document.createElement('span');
+      chip.className = 'supply-chip';
+      chip.textContent = item;
+      chip.onclick = () => toggleChip(chip, item);
+      container.appendChild(chip);
+    });
+  });
+}
+
+function toggleChip(chip, item) {
+  if (selectedChips.has(item)) {
+    selectedChips.delete(item);
+    chip.classList.remove('selected');
+  } else {
+    selectedChips.add(item);
+    chip.classList.add('selected');
+  }
+  syncSuppliesTextarea();
+}
+
+function syncSuppliesTextarea() {
+  document.getElementById('supplies').value = [...selectedChips].join(', ');
+}
+
+function clearSupplies() {
+  selectedChips.clear();
+  document.querySelectorAll('.supply-chip').forEach(c => c.classList.remove('selected'));
+  document.getElementById('supplies').value = '';
+}
+
+/* ── .env file loader (in-memory only) ── */
 function loadEnvFile(e) {
   const file = e.target.files[0];
   if (!file) return;
@@ -208,17 +347,22 @@ function loadEnvFile(e) {
   reader.readAsText(file);
 }
 
+/* ── STRETCH: parse difficulty from model text ── */
+function parseDifficulty(text) {
+  const m = text.match(/\*{0,2}Difficulty\*{0,2}[:\s]+([A-Za-z]+)/i);
+  return m ? m[1].trim() : null;
+}
+
+/* ── Main generator ── */
 async function generateExperiment() {
   if (!apiKey) {
-    alert('Please upload a .env file containing your OPENAI_API_KEY first.');
+    alert('Please upload a .env file with OPENAI_API_KEY first.');
     return;
   }
-
   const grade = document.getElementById('grade-level').value;
   const supplies = document.getElementById('supplies').value.trim();
-
   if (!supplies) {
-    alert('Please list some available supplies.');
+    alert('Please select or enter some available supplies.');
     return;
   }
 
@@ -232,25 +376,33 @@ async function generateExperiment() {
   output.className = 'response-rendered loading';
   output.textContent = 'Asking the model for a great experiment...';
   document.getElementById('result-meta').textContent = '';
-  ['m-time', 'm-tokens', 'm-grade'].forEach(id => document.getElementById(id).textContent = '—');
+  ['m-time','m-tokens','m-grade','m-difficulty'].forEach(id => document.getElementById(id).textContent = '—');
+  document.getElementById('m-difficulty').className = 'val';
 
-  const systemPrompt = `You are an enthusiastic science teacher who designs safe, educational, and fun science experiments.
-You create experiments that are perfectly matched to the student's grade level in terms of complexity, vocabulary, and safety.
-Always format your response in clear markdown with sections for: Overview, Hypothesis, Materials Needed, Procedure (numbered steps), Expected Results, and The Science Behind It.
-Keep safety top of mind — flag any precautions clearly.`;
+  const systemPrompt = `You are an enthusiastic science teacher who designs safe, educational, and fun experiments.
+Match the vocabulary, complexity, and safety requirements to the student's grade level.
+Format your entire response in markdown with these sections:
+## Overview
+## Difficulty
+(write exactly one word: Easy, Medium, or Hard)
+## Hypothesis
+## Materials Needed
+## Procedure
+(numbered steps)
+## Expected Results
+## The Science Behind It
+Include a safety notice if any step requires adult supervision.`;
 
-  const userPrompt = `Design a science experiment for grade level ${grade} students using ONLY the following available supplies (or a subset of them):
+  const userPrompt = `Design a science experiment for grade ${grade} students using ONLY some or all of these supplies:
 
 ${supplies}
 
-The experiment should:
-- Match the cognitive and reading level of grade ${grade} students
-- Be safe for that age group
-- Use only the listed supplies (you can use fewer, but no extras)
-- Be engaging and demonstrate a clear scientific concept
-- Include a simple hypothesis the students can write down
-
-Format the response with clear markdown headings and a numbered procedure.`;
+Requirements:
+- Appropriate complexity and vocabulary for grade ${grade}
+- Safe for that age group
+- Uses only the listed supplies (you may use fewer — no extras)
+- Demonstrates a clear, observable scientific concept
+- Includes a hypothesis students can write in their own words`;
 
   const t0 = Date.now();
   try {
@@ -262,7 +414,7 @@ Format the response with clear markdown headings and a numbered procedure.`;
       },
       body: JSON.stringify({
         model: 'gpt-4o',
-        max_tokens: 1200,
+        max_tokens: 1400,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -283,19 +435,84 @@ Format the response with clear markdown headings and a numbered procedure.`;
     output.className = 'response-rendered';
     output.innerHTML = marked.parse(text);
 
-    document.getElementById('result-meta').textContent = `gpt-4o · free text`;
+    // STRETCH: difficulty display
+    const diff = parseDifficulty(text);
+    const diffEl = document.getElementById('m-difficulty');
+    diffEl.textContent = diff || '—';
+    if (diff) {
+      const d = diff.toLowerCase();
+      diffEl.className = 'val ' + (d === 'easy' ? 'difficulty-easy' : d === 'hard' ? 'difficulty-hard' : 'difficulty-medium');
+    }
+
+    document.getElementById('result-meta').textContent = 'gpt-4o · free text';
     document.getElementById('m-time').textContent = elapsed;
     document.getElementById('m-tokens').textContent = tokens;
     document.getElementById('m-grade').textContent = grade;
 
+    lastResult = { grade, supplies, text, tokens, elapsed, diff, timestamp: new Date() };
+
   } catch (err) {
     output.className = 'response-rendered error-state';
     output.textContent = 'Error: ' + err.message;
+    lastResult = null;
   } finally {
     btn.disabled = false;
     btn.textContent = 'Generate Experiment →';
   }
 }
+
+/* ── STRETCH: History ── */
+function saveToHistory() {
+  if (!lastResult) return;
+  history.unshift({ ...lastResult });
+  renderHistory();
+}
+
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  const count = document.getElementById('history-count');
+  count.textContent = history.length ? `(${history.length})` : '';
+
+  if (!history.length) {
+    list.innerHTML = '<div class="empty-state"><div class="icon">📋</div>No experiments saved yet.<br>Generate one and click "Save to history".</div>';
+    return;
+  }
+
+  list.innerHTML = history.map((entry, i) => {
+    const ts = entry.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const label = entry.diff ? ` · ${entry.diff}` : '';
+    return `
+      <div class="history-item">
+        <div class="history-header" onclick="toggleHistory(${i})">
+          <span style="font-size:16px">🧪</span>
+          <span class="history-title">Grade ${entry.grade} Experiment${label}</span>
+          <span class="history-meta">${ts} · ${entry.tokens} tokens</span>
+          <button class="btn ghost sm" style="margin-left:8px" onclick="event.stopPropagation();deleteHistory(${i})">Remove</button>
+        </div>
+        <div class="history-body" id="hist-body-${i}">
+          <div style="margin-bottom:10px">
+            <span style="font-family:var(--mono);font-size:11px;color:var(--muted)">Supplies used: </span>
+            <span style="font-family:var(--mono);font-size:11px;color:var(--text)">${entry.supplies}</span>
+          </div>
+          <div class="response-rendered">${marked.parse(entry.text)}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleHistory(i) {
+  const body = document.getElementById(`hist-body-${i}`);
+  body.classList.toggle('open');
+}
+
+function deleteHistory(i) {
+  history.splice(i, 1);
+  renderHistory();
+}
+
+/* ── Init ── */
+buildChips();
+renderHistory();
 </script>
 </body>
 </html>
