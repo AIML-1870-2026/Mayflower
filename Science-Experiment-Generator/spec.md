@@ -1,56 +1,70 @@
 # Science Experiment Generator — Spec
 
 ## Project Summary
-A static single-page app that generates grade-appropriate science experiments from a grade level dropdown and a list of available supplies, using the OpenAI API called directly from the browser.
+A static webpage (HTML, CSS, and JavaScript) that enables a user to interact with an LLM for the purposes of generating grade-appropriate science experiments from a list of available materials. The user provides their OpenAI API key by uploading a `.env` file — the key is read in-memory only and never stored or transmitted beyond the API call.
+
+The page allows the user to provide the following input:
+- **Grade Level** — a dropdown menu allowing the user to select grade level (K-2, 3-5, 6-8, 9-12)
+- **Available Supplies** — a text input field allowing the user to enter a list of supplies that are on hand or easily acquired
+
+The completed Science Experiment Generator feels similar to the LLM Switchboard — a clean, self-contained static page that opens directly in the browser with no server required. The user uploads a `.env` file containing their OpenAI API key, selects a grade level, enters the supplies they have on hand, and submits the form. The model's response is rendered as formatted HTML on the page.
 
 ---
 
-## Constraints
+## Key Design Constraints
 
 ### Static page — HTML, CSS, and JavaScript only
-No server, no Node.js, no npm. The page is a single `.html` file that opens directly in the browser with zero build steps or dependencies beyond CDN-loaded libraries (`marked.js` for markdown rendering and Google Fonts).
+No server, no Node.js, no npm. The page runs entirely in the browser. All dependencies (marked.js for markdown rendering, Google Fonts) are loaded from CDN.
 
-### OpenAI models only — no provider switching
-This project calls OpenAI's `gpt-4o` model exclusively. There is no Anthropic dropdown and no ability to switch providers. This is a deliberate architectural choice rooted in the **CORS lesson from the Switchboard project**: Anthropic's API blocks direct browser-to-API requests, so an app with no backend server *cannot* use Anthropic. OpenAI's API allows browser-to-API calls, which is why it's the only viable provider for a purely static page.
+### OpenAI models only — no Anthropic dropdown, no provider switching
+This project uses OpenAI's `gpt-4o` exclusively. There is no Anthropic integration and no ability to switch providers. This is a deliberate architectural choice based on the CORS lesson from the Switchboard: Anthropic's API blocks direct browser requests, so a static page with no backend cannot use it. OpenAI's API allows browser-to-API calls without a backend server — that's why this project is OpenAI-only.
 
 ### Unstructured responses — free-form text, no JSON schema
-The model returns a prose markdown document. There is no `response_format: json_object`, no schema template, and no structured output parsing. The model is prompted to follow a markdown section structure (Overview, Hypothesis, Procedure, etc.) but the response is raw text, not JSON.
+The model returns free-form text. There is no `response_format: json_object`, no schema templates, and no structured output parsing. This project uses unstructured (free-form) responses only.
 
 ### Markdown rendering
-The model's response includes markdown formatting — bold text, numbered lists, headings, horizontal rules. The app uses `marked.js` (loaded from jsDelivr CDN) to convert this markdown to formatted HTML before injecting it into the page. The user never sees raw `**asterisks**` or `##` symbols.
+The model's response includes markdown formatting (bold, lists, headings, etc.). The app renders this as properly formatted HTML using `marked.js`, not raw text.
 
-### API key — loaded from .env, in-memory only
-The user uploads a `.env` file via a file picker. The key is parsed from the file text using a regex (`OPENAI_API_KEY\s*=\s*...`) by the browser's `FileReader` API and stored in a JavaScript variable for the session. It is never written to `localStorage`, `sessionStorage`, cookies, or any server. When the page is closed, the key is gone.
+### API keys loaded from .env — in-memory only
+The user uploads a `.env` file; the key is read once via the browser's `FileReader` API and stored in a JavaScript variable for the session. It is never written to `localStorage`, `sessionStorage`, cookies, or any server. When the page is closed, the key is gone. A direct paste field is also provided as a convenience — same in-memory-only behavior.
 
 ### Deployment
-Deployed as a static page to the class GitHub organization via GitHub Pages:
+Deployed to the GitHub organization for this class:
 **https://aiml-1870-2026.github.io/Mayflower/Science-Experiment-Generator/**
 
 ---
 
-## Reference Material
+## Reference Implementation
 
-The `temp/` folder contains the complete LLM Switchboard project (`llm-switchboard_5.html`) as a reference implementation. The following patterns were directly adapted from it:
+The `temp/` folder contains my complete LLM Switchboard project (HTML, CSS, and JS files). This is NOT part of the current project — do not include it in the final build or deployment.
 
-| Pattern | Switchboard source | Used in this project |
-|---|---|---|
-| `.env` file parsing | `loadEnvFile()` regex | Same regex extracts `OPENAI_API_KEY` |
-| OpenAI `fetch()` structure | `callOpenAI()` — headers, body, response unwrap | `generateExperiment()` fetch block |
-| Error handling | `try/catch`, `.json()` fallback, error state CSS | Same structure in `generateExperiment()` |
-| UI design system | CSS custom properties, card layout, status dot, upload area, metric row | Adapted throughout |
+Use it as a reference for:
+- How to parse a `.env` file for API keys (in-memory only)
+- The `fetch()` call structure for OpenAI's chat completions API
+- Error handling patterns for failed API requests
+- How the code is organized across separate files
+- The general approach to building a single-page LLM tool
+
+Ignore these Switchboard features (not needed here):
+- Anthropic integration (this project is OpenAI-only)
+- The model selection dropdown / provider switching
+- Structured output mode and JSON schema handling
+
+This project uses unstructured (free-form) responses only.
+Render the model's markdown output as formatted HTML.
 
 ---
 
 ## Stretch Challenges Implemented
 
 ### 1. Quick Supply Selector
-A grid of clickable chips organized into three groups (Kitchen, Craft & Office, Science & Outdoor) lets users select common household supplies with one click. Selected chips are highlighted and their values are synced into the supplies textarea. Users can still type freely in the textarea.
+A grid of clickable chips organized into three groups (Kitchen, Craft & Office, Science & Outdoor) lets users select common household supplies with one click. Selected chips sync into the supplies textarea. Users can still type freely.
 
 ### 2. Difficulty Rating
-The system prompt instructs the model to include a `## Difficulty` section with exactly one word: `Easy`, `Medium`, or `Hard`. After generation, a regex extracts this value and displays it color-coded in the metrics row (green / amber / red).
+The system prompt instructs the model to include a `## Difficulty` section with exactly one word: Easy, Medium, or Hard. After generation, a regex parses this value and displays it color-coded in the metrics row (green / amber / red).
 
 ### 3. Experiment History
-A "Save to history" button on each result stores the experiment in an in-memory array. The History card below renders all saved entries as collapsible accordion items, each showing grade level, difficulty, supplies used, timestamp, token count, and the full formatted experiment. Entries can be individually removed.
+A "Save to history" button stores each result in an in-memory array. The History card renders saved entries as collapsible accordion items showing grade level, difficulty, supplies used, timestamp, and the full formatted experiment. Entries can be individually removed.
 
 ---
 
@@ -58,8 +72,8 @@ A "Save to history" button on each result stores the experiment in an in-memory 
 
 ```
 Science-Experiment-Generator/
-├── index.html    # main app (all HTML, CSS, JS in one file)
+├── index.html    # main app — all HTML, CSS, JS in one file
 ├── spec.md       # this file
 └── temp/
-    └── llm-switchboard_5.html   # reference implementation (no .git or .gitignore)
+    └── llm-switchboard_5.html   # reference only — not part of this project
 ```
