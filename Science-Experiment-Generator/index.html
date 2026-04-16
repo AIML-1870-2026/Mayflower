@@ -352,6 +352,18 @@ select option { background: var(--surface2); }
   <!-- API Key -->
   <div class="card accent-cyan">
     <div class="card-title"><span class="card-title-icon">🔑</span> API Key</div>
+    <div style="margin-bottom:10px">
+      <label>Paste API Key</label>
+      <div style="display:flex;gap:8px">
+        <input type="password" id="key-input" placeholder="sk-proj-..." oninput="handleKeyInput()" style="flex:1"/>
+        <button class="btn sm" onclick="toggleKeyVisibility()" id="toggle-vis-btn" style="white-space:nowrap">Show</button>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <div style="flex:1;height:1px;background:var(--border2)"></div>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--muted)">or</span>
+      <div style="flex:1;height:1px;background:var(--border2)"></div>
+    </div>
     <input type="file" id="env-file" accept=".env,.csv" style="display:none" onchange="loadEnvFile(event)"/>
     <div class="upload-area" onclick="document.getElementById('env-file').click()">
       <span class="upload-icon">📂</span>
@@ -534,6 +546,22 @@ function clearSupplies() {
   document.getElementById('supplies').value = '';
 }
 
+/* ── Paste key handler ── */
+function handleKeyInput() {
+  const val = document.getElementById('key-input').value.trim();
+  apiKey = val;
+  const ready = val.length > 10;
+  document.getElementById('status-dot').className = 'status-dot' + (ready ? ' ok' : '');
+  document.getElementById('status-label').textContent = ready ? 'key ready' : 'no key';
+}
+
+function toggleKeyVisibility() {
+  const input = document.getElementById('key-input');
+  const btn = document.getElementById('toggle-vis-btn');
+  if (input.type === 'password') { input.type = 'text'; btn.textContent = 'Hide'; }
+  else { input.type = 'password'; btn.textContent = 'Show'; }
+}
+
 /* ── .env loader (in-memory only) ── */
 function loadEnvFile(e) {
   const file = e.target.files[0];
@@ -544,6 +572,7 @@ function loadEnvFile(e) {
     const match = text.match(/OPENAI_API_KEY\s*[=,]\s*["']?([^\r\n"',]+)["']?/);
     if (match) {
       apiKey = match[1].trim();
+      document.getElementById('key-input').value = apiKey;
       document.getElementById('file-status').textContent = '✓ key loaded';
       document.getElementById('status-dot').className = 'status-dot ok';
       document.getElementById('status-label').textContent = 'key ready';
