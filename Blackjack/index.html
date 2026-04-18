@@ -471,6 +471,31 @@ body::after{
   #hud-title{font-size:11px;letter-spacing:2px}
 }
 
+/* ── AI Agent ── */
+#ai-response-area{width:100%;max-width:700px;background:rgba(0,12,28,.88);border:1px solid rgba(0,229,255,.35);border-radius:10px;padding:11px 20px;text-align:center;backdrop-filter:blur(6px)}
+.ai-action{font-family:'Cinzel',serif;font-size:20px;letter-spacing:3px;font-weight:700}
+.ai-action.hit{color:var(--cyan);text-shadow:0 0 14px rgba(0,229,255,.6)}
+.ai-action.stand{color:var(--seafoam);text-shadow:0 0 14px rgba(100,255,218,.6)}
+.ai-action.thinking{color:var(--foam);animation:thinkerPulse 1.2s ease-in-out infinite}
+@keyframes thinkerPulse{0%,100%{opacity:.5}50%{opacity:1}}
+.ai-explain{font-size:12px;color:rgba(168,216,234,.85);margin-top:5px;line-height:1.6;max-width:520px;margin-left:auto;margin-right:auto}
+.ai-countdown{font-size:11px;color:rgba(0,229,255,.55);margin-top:6px;letter-spacing:1.5px;font-family:'Cinzel',serif}
+.btn-agent{background:linear-gradient(135deg,rgba(0,50,90,.88),rgba(0,20,55,.88));border-color:rgba(0,229,255,.42);color:var(--cyan)}
+.btn-agent:hover:not(:disabled){border-color:var(--cyan);box-shadow:0 0 18px rgba(0,229,255,.28);transform:translateY(-2px)}
+#api-key-input{width:100%;padding:5px 8px;background:rgba(0,8,20,.9);border:1px solid var(--ui-bd);color:var(--text);border-radius:4px;font-size:11px;margin:5px 0;outline:none;font-family:'Nunito',sans-serif}
+#api-key-input:focus{border-color:rgba(0,229,255,.5)}
+.load-env-lbl{display:block;text-align:center;cursor:pointer;font-family:'Cinzel',serif;font-size:9px;letter-spacing:1.5px;padding:5px 0;border-radius:4px;border:1px solid var(--ui-bd);color:var(--foam);transition:all .2s;margin-bottom:5px}
+.load-env-lbl:hover{border-color:var(--cyan);color:var(--cyan);background:rgba(0,229,255,.07)}
+.detail-toggle{display:flex;gap:6px;margin-top:5px}
+.detail-btn{flex:1;font-family:'Cinzel',serif;font-size:9px;letter-spacing:1px;padding:4px 0;border-radius:4px;border:1px solid var(--ui-bd);background:transparent;color:rgba(168,216,234,.55);cursor:pointer;transition:all .2s}
+.detail-btn.active{background:rgba(0,229,255,.13);border-color:rgba(0,229,255,.55);color:var(--cyan)}
+.ai-stat-row{display:flex;justify-content:space-between;font-size:11px;padding:2px 0;color:rgba(168,216,234,.75)}
+.ai-stat-row span:last-child{color:var(--pearl);font-weight:700}
+#ai-key-status{font-size:11px;color:rgba(168,216,234,.55);margin-bottom:7px;line-height:1.45}
+#ai-key-status.ok{color:var(--seafoam)}
+#ai-key-status.err{color:#ff9a9a}
+.ai-sep{border:none;border-top:1px solid var(--ui-bd);margin:8px 0}
+
 </style>
 </head>
 <body>
@@ -508,6 +533,24 @@ body::after{
     <div id="panel-hint" style="font-size:12px;color:var(--seafoam);line-height:1.55">Drop a pearl to dive.</div>
   </div>
   <div class="p-sec">
+    <div class="p-ttl">🤖 AI Agent</div>
+    <div id="ai-key-status">No API key loaded</div>
+    <label class="load-env-lbl">⬆ Load .env File<input type="file" id="env-file" accept=".env,text/plain" style="display:none"></label>
+    <input type="password" id="api-key-input" placeholder="Or paste sk-ant-... key">
+    <button class="btn btn-action" id="btn-set-key" style="width:100%;font-size:10px;padding:5px 0;margin-top:2px">Set Key</button>
+    <hr class="ai-sep">
+    <div style="font-size:10px;color:rgba(168,216,234,.45);margin-bottom:4px;letter-spacing:1px">EXPLANATION DETAIL</div>
+    <div class="detail-toggle">
+      <button class="detail-btn active" id="detail-brief">Brief</button>
+      <button class="detail-btn" id="detail-full">Detailed</button>
+    </div>
+    <hr class="ai-sep">
+    <div class="ai-stat-row"><span>Times Asked</span><span id="ai-asked">0</span></div>
+    <div class="ai-stat-row"><span>Auto-Executed</span><span id="ai-executed">0</span></div>
+    <div class="ai-stat-row"><span>Last Rec.</span><span id="ai-last-rec">—</span></div>
+    <div style="font-size:10px;color:rgba(168,216,234,.3);margin-top:7px;line-height:1.5">Key stays in memory only.<br>Never stored or logged.</div>
+  </div>
+  <div class="p-sec">
     <div class="p-ttl">📜 Dive Log</div>
     <div id="hist-list"></div>
   </div>
@@ -523,6 +566,11 @@ body::after{
   <div id="msg-area">
     <div id="result-msg"></div>
     <div id="strat-hint" class="hidden"></div>
+  </div>
+  <div id="ai-response-area" class="hidden">
+    <div id="ai-rec" class="ai-action thinking">🔮</div>
+    <div id="ai-explain" class="ai-explain"></div>
+    <div id="ai-countdown" class="ai-countdown"></div>
   </div>
 
   <div class="hand-area">
@@ -556,8 +604,9 @@ body::after{
       <button class="btn btn-action"  id="btn-double" disabled>Double <span class="sc">[X]</span></button>
       <button class="btn btn-action"  id="btn-split"  disabled>Split</button>
       <button class="btn btn-danger"  id="btn-clear">Clear</button>
+      <button class="btn btn-agent"   id="btn-agent" disabled>🤖 Agent <span class="sc">[A]</span></button>
     </div>
-    <div id="kb">H = Hit · S = Stand · D = Deal/New · X = Double · C = Clear Bet</div>
+    <div id="kb">H = Hit · S = Stand · D = Deal/New · X = Double · A = Agent · C = Clear Bet</div>
   </div>
 </div>
 
@@ -692,12 +741,13 @@ function updateBtns(){
   hit.disabled=stand.disabled=dbl.disabled=spl.disabled=!isP;
   if(isP){
     const h=isSplit?splitHands[splitIdx]:pHand;
-    // Double cost = current wager on this hand (original bet, or half-bet per split hand)
     const doubleCost=isSplit?splitWagers[splitIdx]:bet;
     dbl.disabled=h.length!==2||balance<doubleCost;
     spl.disabled=isSplit||pHand.length!==2||pHand[0].rank!==pHand[1].rank||balance<bet;
     if(isSplit&&splitAces)hit.disabled=true;
   }
+  const agentBtn=document.getElementById('btn-agent');
+  if(agentBtn)agentBtn.disabled=!(isP&&apiKey);
 }
 
 /* ── Strategy ── */
@@ -1037,6 +1087,7 @@ document.addEventListener('keydown',e=>{
     case 'S':if(!document.getElementById('btn-stand').disabled)doStand();break;
     case 'D':if(state===S.DONE)newRound();else if(state===S.BET&&bet>0)dealRound();break;
     case 'X':if(!document.getElementById('btn-double').disabled)doDouble();break;
+    case 'A':if(!document.getElementById('btn-agent').disabled)askAgent();break;
     case '1':addBet(1);break;case '5':addBet(5);break;
     case '0':addBet(10);break;case '2':addBet(25);break;
     case 'C':if(state===S.BET){bet=0;updateHUD();updateBtns()}break;
@@ -1064,6 +1115,175 @@ function spawnBubble(){
 }
 for(let i=0;i<16;i++)setTimeout(spawnBubble,i*520);
 setInterval(spawnBubble,2000);
+
+/* ── AI Agent ── */
+let apiKey=null,aiDetail='brief',aiCountdownTimer=null;
+const aiStats={asked:0,executed:0,lastRec:'—'};
+
+function parseEnvFile(text){
+  for(const line of text.split('\n')){
+    const t=line.trim();
+    if(!t||t.startsWith('#')||!t.includes('='))continue;
+    const eq=t.indexOf('=');
+    const k=t.slice(0,eq).trim();
+    const v=t.slice(eq+1).trim().replace(/^["']|["']$/g,'');
+    if(['ANTHROPIC_API_KEY','CLAUDE_API_KEY','API_KEY'].includes(k))return v;
+  }
+  return null;
+}
+
+function setApiKey(key){
+  apiKey=key?key.trim():null;
+  const el=document.getElementById('ai-key-status');
+  if(apiKey&&apiKey.length>10){
+    el.textContent='✓ Key loaded ('+apiKey.slice(0,12)+'...)';
+    el.className='ok';
+  }else{
+    el.textContent=apiKey?'⚠ Key looks invalid':'No API key loaded';
+    el.className=apiKey?'err':'';
+    if(!apiKey||apiKey.length<=10)apiKey=null;
+  }
+  updateBtns();
+}
+
+function updateAIStats(){
+  document.getElementById('ai-asked').textContent=aiStats.asked;
+  document.getElementById('ai-executed').textContent=aiStats.executed;
+  document.getElementById('ai-last-rec').textContent=aiStats.lastRec;
+}
+
+function showAIResponse(actionClass,label,explain,countdown){
+  const area=document.getElementById('ai-response-area');
+  document.getElementById('ai-rec').className='ai-action '+actionClass;
+  document.getElementById('ai-rec').textContent=label;
+  document.getElementById('ai-explain').textContent=explain||'';
+  document.getElementById('ai-countdown').textContent=countdown||'';
+  area.classList.remove('hidden');
+}
+
+function hideAIResponse(){
+  document.getElementById('ai-response-area').classList.add('hidden');
+  document.getElementById('ai-countdown').textContent='';
+}
+
+async function askAgent(){
+  if(!apiKey||state!==S.PLAY)return;
+  if(aiCountdownTimer){clearInterval(aiCountdownTimer);aiCountdownTimer=null}
+
+  const hand=isSplit?splitHands[splitIdx]:pHand;
+  const dealerUp=dHand.find(c=>!c.hidden);
+  if(!dealerUp)return;
+
+  const btn=document.getElementById('btn-agent');
+  btn.disabled=true;
+  btn.textContent='🤖 Thinking...';
+  showAIResponse('thinking','🔮 Consulting the oracle...','','');
+
+  const pt=total(hand),soft=isSoft(hand);
+  const handStr=hand.map(c=>c.rank+c.suit).join(', ');
+  const upStr=dealerUp.rank+dealerUp.suit;
+
+  const detailPrompt=aiDetail==='detailed'
+    ?'Provide a detailed explanation covering: why this is the correct basic strategy play, the dealer up card\'s bust probability, and how the player total affects the decision. 2-3 sentences.'
+    :'Provide a brief one-sentence explanation of why this is the correct play.';
+
+  const sys=`You are a blackjack strategy expert. Analyze the game state and respond with ONLY a valid JSON object — no markdown, no extra text.
+Required format: {"action":"hit","explanation":"..."} where action is exactly "hit" or "stand".
+${detailPrompt}`;
+
+  const userMsg=`Game state:
+- Player hand: ${handStr} (${soft?'soft':'hard'} ${pt})
+- Dealer up card: ${upStr} (value: ${Math.min(cVal(dealerUp.rank),10)})
+- Shoe remaining: ${shoe.length} cards | Hi-Lo count: ${runCount>=0?'+':''}${runCount}
+What is the optimal basic strategy play?`;
+
+  try{
+    const resp=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key':apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-allow-browser':'true'
+      },
+      body:JSON.stringify({
+        model:'claude-haiku-4-5-20251001',
+        max_tokens:300,
+        system:sys,
+        messages:[{role:'user',content:userMsg}]
+      })
+    });
+
+    if(!resp.ok){
+      const e=await resp.json().catch(()=>({}));
+      throw new Error(e.error?.message||'API error '+resp.status);
+    }
+
+    const data=await resp.json();
+    let rawText=data.content[0].text.trim();
+    // Strip markdown code fences if model wraps response
+    rawText=rawText.replace(/^```(?:json)?\s*/,'').replace(/\s*```$/,'').trim();
+
+    let parsed;
+    try{parsed=JSON.parse(rawText)}
+    catch{throw new Error('AI returned non-JSON response')}
+
+    const action=(parsed.action||'').toLowerCase();
+    if(action!=='hit'&&action!=='stand')throw new Error('Unexpected action: '+action);
+
+    aiStats.asked++;
+    aiStats.lastRec=action.toUpperCase();
+    updateAIStats();
+
+    showAIResponse(action,'🤖 '+action.toUpperCase(),parsed.explanation||'','Executing in 3...');
+
+    let n=3;
+    aiCountdownTimer=setInterval(()=>{
+      n--;
+      if(n<=0){
+        clearInterval(aiCountdownTimer);aiCountdownTimer=null;
+        hideAIResponse();
+        aiStats.executed++;
+        updateAIStats();
+        if(action==='hit')doHit();else doStand();
+      }else{
+        document.getElementById('ai-countdown').textContent='Executing in '+n+'...';
+      }
+    },1000);
+
+  }catch(err){
+    showAIResponse('','⚠ '+err.message,'Check your API key and try again.','');
+    setTimeout(hideAIResponse,3500);
+  }finally{
+    btn.disabled=false;
+    btn.innerHTML='🤖 Agent <span class="sc">[A]</span>';
+    updateBtns();
+  }
+}
+
+/* ── AI event listeners ── */
+document.getElementById('env-file').addEventListener('change',function(){
+  const file=this.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{const key=parseEnvFile(e.target.result);setApiKey(key||(e.target.result.trim().startsWith('sk-')?e.target.result.trim():null));this.value=''};
+  reader.readAsText(file);
+});
+document.getElementById('btn-set-key').addEventListener('click',()=>{
+  const v=document.getElementById('api-key-input').value;setApiKey(v);
+  document.getElementById('api-key-input').value='';
+});
+document.getElementById('api-key-input').addEventListener('keydown',e=>{if(e.key==='Enter'){const v=e.target.value;setApiKey(v);e.target.value=''}});
+document.getElementById('btn-agent').addEventListener('click',askAgent);
+document.getElementById('detail-brief').addEventListener('click',()=>{
+  aiDetail='brief';
+  document.getElementById('detail-brief').classList.add('active');
+  document.getElementById('detail-full').classList.remove('active');
+});
+document.getElementById('detail-full').addEventListener('click',()=>{
+  aiDetail='detailed';
+  document.getElementById('detail-full').classList.add('active');
+  document.getElementById('detail-brief').classList.remove('active');
+});
 
 /* ── Init ── */
 initShoe();updateHUD();updateBtns();refreshStats();
