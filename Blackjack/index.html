@@ -495,6 +495,16 @@ body::after{
 #ai-key-status.ok{color:var(--seafoam)}
 #ai-key-status.err{color:#ff9a9a}
 .ai-sep{border:none;border-top:1px solid var(--ui-bd);margin:8px 0}
+.result-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex-shrink:0;cursor:default}
+.result-dot.win{background:var(--seafoam)}
+.result-dot.loss{background:#ff6b6b}
+.result-dot.push{background:rgba(168,216,234,.3)}
+.result-dot.ai-win{background:var(--seafoam);box-shadow:0 0 5px rgba(0,229,255,.9);border:1px solid var(--cyan)}
+.result-dot.ai-loss{background:#ff6b6b;box-shadow:0 0 4px rgba(255,107,107,.8);border:1px solid #ff9a9a}
+.result-dot.ai-push{background:rgba(168,216,234,.2);border:1px solid rgba(0,229,255,.4)}
+#ai-dot-row{display:flex;gap:3px;flex-wrap:wrap;margin-top:5px;min-height:11px}
+.ai-rate-bar{height:5px;border-radius:3px;background:rgba(255,255,255,.1);margin:3px 0 2px;overflow:hidden}
+.ai-rate-fill{height:100%;border-radius:3px;transition:width .5s ease,background .5s ease}
 
 </style>
 </head>
@@ -545,9 +555,17 @@ body::after{
       <button class="detail-btn" id="detail-full">Detailed</button>
     </div>
     <hr class="ai-sep">
+    <div style="font-size:10px;color:rgba(168,216,234,.45);letter-spacing:1px;margin-bottom:4px">PERFORMANCE ANALYTICS</div>
+    <div class="ai-stat-row"><span>Hands w/ AI</span><span id="ai-hands-ct">0</span></div>
+    <div class="ai-stat-row"><span>AI Win Rate</span><span id="ai-win-rate">—</span></div>
+    <div class="ai-rate-bar"><div id="ai-rate-fill" class="ai-rate-fill" style="width:0%;background:var(--seafoam)"></div></div>
+    <div id="ai-vs-overall" style="font-size:10px;color:rgba(168,216,234,.45);min-height:14px"></div>
+    <div class="ai-stat-row" style="margin-top:3px"><span>AI Net P/L</span><span id="ai-net-pl">🦪 0</span></div>
     <div class="ai-stat-row"><span>Times Asked</span><span id="ai-asked">0</span></div>
-    <div class="ai-stat-row"><span>Auto-Executed</span><span id="ai-executed">0</span></div>
-    <div class="ai-stat-row"><span>Last Rec.</span><span id="ai-last-rec">—</span></div>
+    <hr class="ai-sep">
+    <div style="font-size:10px;color:rgba(168,216,234,.45);letter-spacing:1px">RECENT RESULTS</div>
+    <div id="ai-dot-row"></div>
+    <div style="font-size:9px;color:rgba(168,216,234,.3);margin-top:3px">Glowing = AI-assisted hand</div>
     <div style="font-size:10px;color:rgba(168,216,234,.3);margin-top:7px;line-height:1.5">Key stays in memory only.<br>Never stored or logged.</div>
   </div>
   <div class="p-sec">
@@ -790,6 +808,19 @@ function record(result,b,net){
   else if(result==='loss'){stats.losses++;stats.streak=Math.min(0,stats.streak)-1}
   else stats.pushes++;
   history.unshift({result,b,net});if(history.length>20)history.pop();
+  // Track AI outcome once per hand (first record() call wins)
+  if(!aiHandCounted){
+    aiHandCounted=true;
+    handHistory.unshift({result,ai:aiUsedThisHand});
+    if(handHistory.length>20)handHistory.pop();
+    if(aiUsedThisHand){
+      aiHandStats.followed++;
+      if(result==='win'||result==='bj')aiHandStats.wins++;
+      else if(result==='loss')aiHandStats.losses++;
+      else aiHandStats.pushes++;
+      aiHandStats.net+=net;
+    }
+  }
   refreshStats();
 }
 function refreshStats(){
@@ -806,6 +837,7 @@ function refreshStats(){
     const lbl=h.result==='bj'?'BLACKJACK':h.result.toUpperCase();
     return`<div class="h-item ${cls}"><span>${lbl}</span><span>${(h.net>=0?'+':'')+pearl(h.net)}</span></div>`;
   }).join('');
+  refreshAIAnalytics();
 }
 
 /* ── Pearl burst particles ── */
@@ -1050,6 +1082,7 @@ function finish(res,net){record(res,bet,net);updateHUD();state=S.DONE;renderAll(
 
 function newRound(){
   audio();clrMsg();hideHint();
+  aiUsedThisHand=false;aiHandCounted=false;
   state=S.BET;bet=0;isSplit=false;splitAces=false;
   splitHands=[[],[]];splitWagers=[0,0];splitIdx=0;insBet=0;
   dHand=[];pHand=[];
@@ -1118,7 +1151,10 @@ setInterval(spawnBubble,2000);
 
 /* ── AI Agent ── */
 let apiKey=null,aiDetail='brief',aiCountdownTimer=null;
-const aiStats={asked:0,executed:0,lastRec:'—'};
+let aiUsedThisHand=false,aiHandCounted=false;
+const aiStats={asked:0,executed:0};
+const aiHandStats={followed:0,wins:0,losses:0,pushes:0,net:0};
+const handHistory=[]; // {result, ai} — last 20 hands
 
 function parseEnvFile(text){
   for(const line of text.split('\n')){
@@ -1146,10 +1182,38 @@ function setApiKey(key){
   updateBtns();
 }
 
-function updateAIStats(){
+function refreshAIAnalytics(){
+  const f=aiHandStats.followed;
+  document.getElementById('ai-hands-ct').textContent=f;
   document.getElementById('ai-asked').textContent=aiStats.asked;
-  document.getElementById('ai-executed').textContent=aiStats.executed;
-  document.getElementById('ai-last-rec').textContent=aiStats.lastRec;
+
+  const wrEl=document.getElementById('ai-win-rate');
+  if(f>0){
+    const aiWrPct=aiHandStats.wins/f*100;
+    wrEl.textContent=aiWrPct.toFixed(1)+'%';
+    wrEl.style.color=aiWrPct>=50?'var(--seafoam)':'#ff9a9a';
+    document.getElementById('ai-rate-fill').style.width=aiWrPct+'%';
+    document.getElementById('ai-rate-fill').style.background=aiWrPct>=50?'var(--seafoam)':'#ff6b6b';
+    const vsEl=document.getElementById('ai-vs-overall');
+    if(stats.hands>0){
+      const ovWrPct=stats.wins/stats.hands*100;
+      const diff=(aiWrPct-ovWrPct).toFixed(1);
+      vsEl.textContent='vs overall '+(ovWrPct).toFixed(1)+'% ('+(diff>=0?'+':'')+diff+'%)';
+      vsEl.style.color=parseFloat(diff)>=0?'var(--seafoam)':'#ff9a9a';
+    }
+  }else{
+    wrEl.textContent='—';wrEl.style.color='var(--pearl)';
+  }
+
+  const n=aiHandStats.net,nlEl=document.getElementById('ai-net-pl');
+  nlEl.textContent=(n>=0?'+':'')+pearl(n);
+  nlEl.style.color=n>=0?'var(--seafoam)':'#ff9a9a';
+
+  document.getElementById('ai-dot-row').innerHTML=handHistory.slice(0,20).map(h=>{
+    const isWin=h.result==='win'||h.result==='bj',isLoss=h.result==='loss';
+    const cls=h.ai?(isWin?'ai-win':isLoss?'ai-loss':'ai-push'):(isWin?'win':isLoss?'loss':'push');
+    return`<div class="result-dot ${cls}" title="${h.result.toUpperCase()}${h.ai?' — AI':''}"></div>`;
+  }).join('');
 }
 
 function showAIResponse(actionClass,label,explain,countdown){
@@ -1232,8 +1296,7 @@ What is the optimal basic strategy play?`;
     if(action!=='hit'&&action!=='stand')throw new Error('Unexpected action: '+action);
 
     aiStats.asked++;
-    aiStats.lastRec=action.toUpperCase();
-    updateAIStats();
+    refreshAIAnalytics();
 
     showAIResponse(action,'🤖 '+action.toUpperCase(),parsed.explanation||'','Executing in 3...');
 
@@ -1243,8 +1306,8 @@ What is the optimal basic strategy play?`;
       if(n<=0){
         clearInterval(aiCountdownTimer);aiCountdownTimer=null;
         hideAIResponse();
+        aiUsedThisHand=true;
         aiStats.executed++;
-        updateAIStats();
         if(action==='hit')doHit();else doStand();
       }else{
         document.getElementById('ai-countdown').textContent='Executing in '+n+'...';
