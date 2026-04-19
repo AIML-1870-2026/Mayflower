@@ -183,6 +183,17 @@
 
     textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
 
+    /* ─── Family tabs ─── */
+    .family-tabs { display:flex; border:1px solid var(--border); margin-bottom:10px; }
+    .family-tab { flex:1; padding:9px 0; background:transparent; border:none; color:var(--muted); font-family:var(--mono); font-size:11px; cursor:pointer; text-align:center; transition:all .15s; letter-spacing:.08em; text-transform:uppercase; }
+    .family-tab:not(:last-child) { border-right:1px solid var(--border); }
+    .family-tab.active.openai { background:rgba(74,222,128,.08); color:#4ade80; }
+    .family-tab.active.anthropic { background:rgba(232,213,163,.08); color:var(--accent); }
+    .key-field { display:none; }
+    .key-field.active { display:block; }
+    .model-panel { display:none; }
+    .model-panel.active { display:block; }
+
     /* ─── Model cards ─── */
     .model-grid {
       display: grid;
@@ -498,7 +509,7 @@
 <div class="page-wrap">
 
   <header>
-    <div class="eyebrow">Educational tool &mdash; OpenAI</div>
+    <div class="eyebrow">Educational tool &mdash; OpenAI &amp; Anthropic</div>
     <h1>Product<br><em>Review Generator</em></h1>
     <p class="subtitle">Select a model, describe your product, and let the LLM draft a structured review. For research and learning only.</p>
   </header>
@@ -508,36 +519,68 @@
     <!-- Left panel: form -->
     <div class="panel">
 
-      <div class="field">
-        <label>OpenAI API Key</label>
-        <input type="password" id="api-key" placeholder="sk-..." autocomplete="off" />
-        <div style="margin-top:6px;display:flex;align-items:center;gap:10px">
-          <label for="env-upload" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--muted);border:1px solid var(--border);padding:4px 10px;background:var(--surface2);margin-bottom:0">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Load .env
-          </label>
-          <input type="file" id="env-upload" accept=".env,.csv,.txt" style="display:none" onchange="loadEnvFile(event)" />
-          <span id="env-status" style="font-family:var(--mono);font-size:10px;color:var(--muted)"></span>
+      <div class="key-field active" id="key-field-openai">
+        <div class="field">
+          <label>OpenAI API Key</label>
+          <input type="password" id="api-key-openai" placeholder="sk-proj-..." autocomplete="off" />
+        </div>
+      </div>
+      <div class="key-field" id="key-field-anthropic">
+        <div class="field">
+          <label>Anthropic API Key</label>
+          <input type="password" id="api-key-anthropic" placeholder="sk-ant-..." autocomplete="off" />
+        </div>
+      </div>
+      <div style="margin-bottom:1.2rem;display:flex;align-items:center;gap:10px">
+        <label for="env-upload" style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--muted);border:1px solid var(--border);padding:4px 10px;background:var(--surface2);margin-bottom:0">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Load .env
+        </label>
+        <input type="file" id="env-upload" accept=".env,.csv,.txt" style="display:none" onchange="loadEnvFile(event)" />
+        <span id="env-status" style="font-family:var(--mono);font-size:10px;color:var(--muted)"></span>
+      </div>
+
+      <p class="sect-label">Model Family &amp; Model</p>
+      <div class="family-tabs">
+        <button class="family-tab openai active" data-family="openai">OpenAI</button>
+        <button class="family-tab anthropic" data-family="anthropic">Anthropic</button>
+      </div>
+
+      <div class="model-panel active" id="models-openai">
+        <div class="model-grid">
+          <div class="mc sel" data-model="gpt-4o">
+            <div class="mc-name">GPT-4o</div>
+            <div class="mc-desc">Flagship &middot; best quality</div>
+          </div>
+          <div class="mc" data-model="gpt-4o-mini">
+            <div class="mc-name">GPT-4o mini</div>
+            <div class="mc-desc">Fast &amp; affordable</div>
+          </div>
+          <div class="mc" data-model="gpt-4-turbo">
+            <div class="mc-name">GPT-4 Turbo</div>
+            <div class="mc-desc">Extended context</div>
+          </div>
+          <div class="mc" data-model="gpt-3.5-turbo">
+            <div class="mc-name">GPT-3.5 Turbo</div>
+            <div class="mc-desc">Lightweight &amp; quick</div>
+          </div>
         </div>
       </div>
 
-      <p class="sect-label">Model</p>
-      <div class="model-grid" id="model-grid">
-        <div class="mc sel" data-model="gpt-4o">
-          <div class="mc-name">GPT-4o</div>
-          <div class="mc-desc">Flagship &middot; best quality</div>
-        </div>
-        <div class="mc" data-model="gpt-4o-mini">
-          <div class="mc-name">GPT-4o mini</div>
-          <div class="mc-desc">Fast &amp; affordable</div>
-        </div>
-        <div class="mc" data-model="gpt-4-turbo">
-          <div class="mc-name">GPT-4 Turbo</div>
-          <div class="mc-desc">Extended context</div>
-        </div>
-        <div class="mc" data-model="gpt-3.5-turbo">
-          <div class="mc-name">GPT-3.5 Turbo</div>
-          <div class="mc-desc">Lightweight &amp; quick</div>
+      <div class="model-panel" id="models-anthropic">
+        <div class="model-grid">
+          <div class="mc sel" data-model="claude-haiku-4-5-20251001">
+            <div class="mc-name">Claude Haiku 4.5</div>
+            <div class="mc-desc">Fast &amp; affordable</div>
+          </div>
+          <div class="mc" data-model="claude-sonnet-4-6">
+            <div class="mc-name">Claude Sonnet 4.6</div>
+            <div class="mc-desc">Balanced &amp; capable</div>
+          </div>
+          <div class="mc" data-model="claude-opus-4-7">
+            <div class="mc-name">Claude Opus 4.7</div>
+            <div class="mc-desc">Most powerful</div>
+          </div>
         </div>
       </div>
 
@@ -656,7 +699,8 @@
 </div><!-- .page-wrap -->
 
 <script>
-  let selModel = 'gpt-4o';
+  let selModel    = 'gpt-4o';
+  let selProvider = 'openai';
 
   const sentLabels  = ['','Negative','Below Avg','Mixed','Good','Excellent'];
   const toneLabels  = ['','Casual','Friendly','Balanced','Professional','Technical'];
@@ -667,10 +711,30 @@
     document.getElementById(valId).textContent = labels[document.getElementById(inputId).value];
   }
 
-  // Model selection
+  // Family tabs
+  document.querySelectorAll('.family-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      selProvider = tab.dataset.family;
+      document.querySelectorAll('.family-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      // Show/hide key fields
+      document.getElementById('key-field-openai').classList.toggle('active', selProvider === 'openai');
+      document.getElementById('key-field-anthropic').classList.toggle('active', selProvider === 'anthropic');
+      // Show/hide model panels and reset selection
+      document.getElementById('models-openai').classList.toggle('active', selProvider === 'openai');
+      document.getElementById('models-anthropic').classList.toggle('active', selProvider === 'anthropic');
+      const panel = document.getElementById('models-' + selProvider);
+      const first = panel.querySelector('.mc');
+      panel.querySelectorAll('.mc').forEach(c => c.classList.remove('sel'));
+      if (first) { first.classList.add('sel'); selModel = first.dataset.model; }
+    });
+  });
+
+  // Model selection (works for cards in both panels)
   document.querySelectorAll('.mc').forEach(card => {
     card.addEventListener('click', () => {
-      document.querySelectorAll('.mc').forEach(c => c.classList.remove('sel'));
+      // Only deselect cards in the same panel
+      card.closest('.model-panel').querySelectorAll('.mc').forEach(c => c.classList.remove('sel'));
       card.classList.add('sel');
       selModel = card.dataset.model;
     });
@@ -695,19 +759,20 @@
     const reader = new FileReader();
     reader.onload = ev => {
       const text = ev.target.result;
-      const match = text.match(/OPENAI_API_KEY\s*[=,]\s*["']?([^\r\n"',]+)["']?/);
-      if (match) {
-        document.getElementById('api-key').value = match[1].trim();
-        document.getElementById('env-status').textContent = '✓ key loaded';
-      } else {
-        document.getElementById('env-status').textContent = '⚠ no OPENAI_API_KEY found';
-      }
+      const om = text.match(/OPENAI_API_KEY\s*[=,]\s*["']?([^\r\n"',]+)["']?/);
+      const am = text.match(/ANTHROPIC_API_KEY\s*[=,]\s*["']?([^\r\n"',]+)["']?/);
+      if (om) document.getElementById('api-key-openai').value = om[1].trim();
+      if (am) document.getElementById('api-key-anthropic').value = am[1].trim();
+      const count = (om?1:0)+(am?1:0);
+      document.getElementById('env-status').textContent = count ? '✓ '+count+' key(s) loaded' : '⚠ no keys found';
     };
     reader.readAsText(file);
   }
 
   async function generate() {
-    const apiKey   = document.getElementById('api-key').value.trim();
+    const apiKey   = selProvider === 'openai'
+      ? document.getElementById('api-key-openai').value.trim()
+      : document.getElementById('api-key-anthropic').value.trim();
     const prodName = document.getElementById('prod-name').value.trim();
     const category = document.getElementById('category').value;
     const features = document.getElementById('features').value.trim();
@@ -719,8 +784,9 @@
     const toneV      = +document.getElementById('tone').value;
     const lengthV    = +document.getElementById('length').value;
 
-    if (!apiKey)   { showError('Please enter your OpenAI API key.'); return; }
-    if (apiKey.startsWith('sk-ant-')) { showError('That looks like an Anthropic key (sk-ant-...). This tool uses OpenAI — please paste your OpenAI key instead (sk-proj-... or sk-...). Get one at platform.openai.com/api-keys.'); return; }
+    if (!apiKey) { showError('Please enter your ' + (selProvider === 'openai' ? 'OpenAI' : 'Anthropic') + ' API key.'); return; }
+    if (selProvider === 'openai' && apiKey.startsWith('sk-ant-')) { showError('That looks like an Anthropic key. Switch to the Anthropic family tab, or enter your OpenAI key (sk-proj-...).'); return; }
+    if (selProvider === 'anthropic' && !apiKey.startsWith('sk-ant-')) { showError('That doesn\'t look like an Anthropic key (sk-ant-...). Switch to the OpenAI tab, or enter your Anthropic key.'); return; }
     if (!prodName) { showError('Please enter a product name.'); return; }
 
     setState('loading');
@@ -753,50 +819,63 @@ ${lengthV === 1
 
 The review's sentiment for each aspect should closely match the specified ratings above. Do not mention that this is AI-generated.`;
 
+    const systemPrompt = 'You are an expert product reviewer who writes compelling, well-structured product reviews in markdown. Be specific, authentic-sounding, and match the requested tone precisely.';
+
     try {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + apiKey
-        },
-        body: JSON.stringify({
-          model: selModel,
-          max_tokens: 1200,
-          messages: [
-            {
-              role: 'system',
-              content: 'You are an expert product reviewer who writes compelling, well-structured product reviews in markdown. Be specific, authentic-sounding, and match the requested tone precisely.'
-            },
-            { role: 'user', content: prompt }
-          ]
-        })
-      });
+      let md = '';
 
-      if (!res.ok) {
-        const e = await res.json().catch(() => ({}));
-        const msg = e?.error?.message || `HTTP ${res.status}`;
-        if (res.status === 401) throw new Error('Invalid API key. Double-check you copied the full key starting with "sk-".');
-        if (res.status === 429) throw new Error('Rate limit or quota exceeded. Check your OpenAI usage at platform.openai.com/usage.');
-        if (res.status === 404) throw new Error(`Model "${selModel}" not available on your account. Try GPT-4o mini.`);
-        throw new Error(`OpenAI error (${res.status}): ${msg}`);
+      if (selProvider === 'openai') {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + apiKey },
+          body: JSON.stringify({ model: selModel, max_tokens: 1200,
+            messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: prompt }] })
+        });
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          const msg = e?.error?.message || `HTTP ${res.status}`;
+          if (res.status === 401) throw new Error('Invalid OpenAI API key. Double-check the full key starting with "sk-".');
+          if (res.status === 429) throw new Error('Rate limit or quota exceeded. Check platform.openai.com/usage.');
+          if (res.status === 404) throw new Error(`Model "${selModel}" not on your account. Try GPT-4o mini.`);
+          throw new Error(`OpenAI error (${res.status}): ${msg}`);
+        }
+        const data = await res.json();
+        md = data.choices?.[0]?.message?.content || '';
+        if (!md) throw new Error('OpenAI returned an empty response. Try again.');
+
+      } else {
+        // Anthropic via CORS proxy
+        const proxyUrl = 'https://corsproxy.io/?url=' + encodeURIComponent('https://api.anthropic.com/v1/messages');
+        const res = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01', 'anthropic-dangerous-allow-browser': 'true' },
+          body: JSON.stringify({ model: selModel, max_tokens: 1200,
+            system: systemPrompt, messages: [{ role: 'user', content: prompt }] })
+        });
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          const msg = e?.error?.message || `HTTP ${res.status}`;
+          if (res.status === 401) throw new Error('Invalid Anthropic API key. Check console.anthropic.com/settings/keys.');
+          if (res.status === 429) throw new Error('Anthropic rate limit exceeded. Try again in a moment.');
+          throw new Error(`Anthropic error (${res.status}): ${msg}`);
+        }
+        const data = await res.json();
+        md = data.content?.[0]?.text || '';
+        if (!md) throw new Error('Anthropic returned an empty response. Try again.');
       }
-
-      const data = await res.json();
-      const md = data.choices?.[0]?.message?.content || '';
-      if (!md) throw new Error('OpenAI returned an empty response. Try again.');
 
       lastMarkdown = md;
       document.getElementById('stars-out').textContent = starsStr;
       document.getElementById('review-content').innerHTML = marked.parse(md);
       document.getElementById('out-meta').textContent =
-        `${prodName} · ${selModel} · ${toneLabels[toneV]} · ${wordCounts[lengthV]}w · ${new Date().toLocaleTimeString()}`;
+        `${prodName} · ${selProvider.toUpperCase()} · ${selModel} · ${toneLabels[toneV]} · ${wordCounts[lengthV]}w · ${new Date().toLocaleTimeString()}`;
       copyBtn.style.display = '';
       setState('result');
 
     } catch (err) {
-      showError(err.message === 'Failed to fetch' || err.message === 'Load failed'
-        ? 'Could not reach api.openai.com. Possible causes: (1) no billing/credits on your OpenAI account — check platform.openai.com/account/billing, (2) your network blocks OpenAI — try a phone hotspot, (3) a browser extension is blocking the request.'
+      showError(err instanceof TypeError
+        ? 'Network error — could not reach the API. Check your internet connection or try a different network. (' + err.message + ')'
         : err.message);
     }
   }
