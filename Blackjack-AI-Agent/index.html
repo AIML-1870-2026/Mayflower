@@ -170,6 +170,26 @@ body{display:flex;flex-direction:column;min-height:100vh}
 .dot.ap{background:rgba(159,122,234,.25);border:1px solid rgba(159,122,234,.4)}
 #dot-legend{font-size:9px;color:rgba(226,232,240,.3);margin-top:3px}
 
+/* Strategy Visualization */
+#strat-section{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+#strat-header{padding:8px 12px;background:rgba(246,224,94,.07);border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:10px;letter-spacing:2px;color:var(--gold)}
+#strat-body{padding:10px 12px}
+#strat-hand-type{font-size:11px;color:var(--muted);margin-bottom:8px;font-family:'Cinzel',serif;letter-spacing:1px;font-style:italic}
+#strat-grid{display:flex;flex-direction:column;gap:2px}
+.sg-row{display:flex;gap:2px;align-items:center}
+.sg-cell{width:26px;height:24px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:9px;font-weight:700;border:1px solid transparent;transition:transform .15s}
+.sg-head{background:rgba(255,255,255,.05);color:var(--muted);font-size:9px}
+.sg-label{width:32px;font-size:9px;color:var(--muted);text-align:right;padding-right:4px;font-family:'Cinzel',serif}
+.sc-H{background:rgba(99,179,237,.18);color:var(--cyan);border-color:rgba(99,179,237,.25)}
+.sc-S{background:rgba(104,211,145,.18);color:var(--green);border-color:rgba(104,211,145,.25)}
+.sc-D{background:rgba(246,224,94,.18);color:var(--gold);border-color:rgba(246,224,94,.25)}
+.sc-P{background:rgba(159,122,234,.18);color:var(--agent);border-color:rgba(159,122,234,.25)}
+.sg-cell.current{transform:scale(1.18);border:2px solid var(--gold)!important;box-shadow:0 0 8px rgba(246,224,94,.55);z-index:2;position:relative}
+.sg-head.current{border:2px solid rgba(246,224,94,.6)!important;color:var(--gold);font-weight:700}
+#strat-legend{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:3px;font-size:9px;color:var(--muted)}
+.leg-sq{width:8px;height:8px;border-radius:2px}
+
 /* Scrollbar */
 #agent-col::-webkit-scrollbar{width:4px}
 #agent-col::-webkit-scrollbar-track{background:transparent}
@@ -291,6 +311,22 @@ body{display:flex;flex-direction:column;min-height:100vh}
           <button class="detail-btn active" id="detail-brief">Brief</button>
           <button class="detail-btn" id="detail-detailed">Detailed</button>
           <button class="detail-btn" id="detail-statistical">Statistical</button>
+        </div>
+      </div>
+
+      <!-- Strategy Visualization -->
+      <div id="strat-section">
+        <div id="strat-header">STRATEGY MATRIX</div>
+        <div id="strat-body">
+          <div id="strat-hand-type">Deal a hand to see the decision matrix.</div>
+          <div id="strat-grid"></div>
+          <div id="strat-legend">
+            <div class="leg"><div class="leg-sq" style="background:rgba(99,179,237,.5)"></div><span style="color:var(--cyan)">H=Hit</span></div>
+            <div class="leg"><div class="leg-sq" style="background:rgba(104,211,145,.5)"></div><span style="color:var(--green)">S=Stand</span></div>
+            <div class="leg"><div class="leg-sq" style="background:rgba(246,224,94,.5)"></div><span style="color:var(--gold)">D=Double</span></div>
+            <div class="leg"><div class="leg-sq" style="background:rgba(159,122,234,.5)"></div><span style="color:var(--agent)">P=Split</span></div>
+            <div class="leg"><span style="color:var(--gold)">★</span><span>=current</span></div>
+          </div>
         </div>
       </div>
 
@@ -727,11 +763,85 @@ function clearAIPanel(){
   document.getElementById('ai-rec-badge').className='none';
   document.getElementById('btn-execute').disabled=true;
   pendingAction=null;
+  clearStrategyViz();
 }
 
 /* Update the Execute button state */
 function setExecuteBtn(enabled){
   document.getElementById('btn-execute').disabled=!enabled;
+}
+
+/* ════════════════════════════════════════
+   STRATEGY VISUALIZATION
+   Dealer columns: [2,3,4,5,6,7,8,9,T,A]
+════════════════════════════════════════ */
+const DLABELS=['2','3','4','5','6','7','8','9','T','A'];
+
+const HARD_S={
+   5:'HHHHHHHHHH', 6:'HHHHHHHHHH', 7:'HHHHHHHHHH', 8:'HHHHHHHHHH',
+   9:'HDDDDHHHHH',10:'DDDDDDDDHH',11:'DDDDDDDDDH',
+  12:'HHSSSHHHHH',13:'SSSSSHHHHH',14:'SSSSSHHHHH',
+  15:'SSSSSHHHHH',16:'SSSSSHHHHH',
+};
+const SOFT_S={
+  13:'HHHDDHHHHH',14:'HHHDDHHHHH',15:'HHDDDHHHHH',
+  16:'HHDDDHHHHH',17:'HDDDDHHHHH',18:'SDDDDSSHHS',
+};
+const PAIR_S={
+  'A':'PPPPPPPPPP','2':'PPPPPPHHHH','3':'PPPPPPHHHH',
+  '4':'HHHPPHHHHH','5':'DDDDDDDDHH','6':'PPPPPHHHHH',
+  '7':'PPPPPPHHHH','8':'PPPPPPPPPP','9':'PPPPPSPPSS',
+  '10':'SSSSSSSSSS','J':'SSSSSSSSSS','Q':'SSSSSSSSSS','K':'SSSSSSSSSS',
+};
+
+function dealerColIdx(card){
+  if(card.rank==='A')return 9;
+  const v=cVal(card.rank);
+  if(v>=10)return 8;
+  return v-2;
+}
+
+function getStratRow(hand){
+  if(hand.length===2&&hand[0].rank===hand[1].rank){
+    return{label:'Pair of '+hand[0].rank+'s',row:PAIR_S[hand[0].rank]||'HHHHHHHHHH'};
+  }
+  const pt=total(hand);
+  if(isSoft(hand)){
+    return{label:'Soft '+pt,row:SOFT_S[pt]||'SSSSSSSSSS'};
+  }
+  const t=Math.max(Math.min(pt,16),5);
+  return{label:'Hard '+pt+(pt>16?' — Always Stand':''),row:HARD_S[t]||'SSSSSSSSSS'};
+}
+
+function showStrategyViz(hand,dealerUp){
+  const {label,row}=getStratRow(hand);
+  const di=dealerColIdx(dealerUp);
+  document.getElementById('strat-hand-type').textContent=label+' vs Dealer '+DLABELS[di];
+  document.getElementById('strat-hand-type').style.fontStyle='normal';
+  document.getElementById('strat-hand-type').style.color='var(--text)';
+
+  // Header row (dealer labels)
+  let html='<div class="sg-row"><div class="sg-label"></div>';
+  DLABELS.forEach((l,i)=>html+=`<div class="sg-cell sg-head${i===di?' current':''}">${l}</div>`);
+  html+='</div>';
+
+  // Strategy row
+  html+='<div class="sg-row"><div class="sg-label">Play</div>';
+  row.split('').forEach((a,i)=>html+=`<div class="sg-cell sc-${a}${i===di?' current':''}">${a}</div>`);
+  html+='</div>';
+
+  document.getElementById('strat-grid').innerHTML=html;
+
+  const optimalPlay=row[di];
+  const playNames={H:'HIT',S:'STAND',D:'DOUBLE',P:'SPLIT'};
+  console.log('[AI Agent] Strategy matrix — '+label+' vs dealer '+DLABELS[di]+' → optimal: '+playNames[optimalPlay]);
+}
+
+function clearStrategyViz(){
+  document.getElementById('strat-hand-type').textContent='Deal a hand to see the decision matrix.';
+  document.getElementById('strat-hand-type').style.fontStyle='italic';
+  document.getElementById('strat-hand-type').style.color='var(--muted)';
+  document.getElementById('strat-grid').innerHTML='';
 }
 
 /* Refresh the analytics panel */
@@ -895,6 +1005,9 @@ ${detailMap[aiDetail]}`;
 
     pendingAction=action;
     setExecuteBtn(true);
+
+    // Show strategy matrix for the current hand position
+    showStrategyViz(hand,dealerUp);
 
   }catch(err){
     console.error('[AI Agent] Error:', err.message);
