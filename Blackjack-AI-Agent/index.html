@@ -230,25 +230,25 @@ body::after{
    AGENT PANEL (fixed right side)
 ════════════════════════════════════════ */
 #agent-panel{
-  position:fixed;right:0;top:0;bottom:0;width:300px;z-index:50;
+  position:fixed;right:0;top:46px;bottom:0;width:300px;z-index:50;
   background:rgba(2,10,22,.96);
   border-left:1px solid var(--ui-bd);
   backdrop-filter:blur(14px);
-  display:flex;flex-direction:column;
-  overflow:hidden;
+  overflow-y:scroll;
+  -webkit-overflow-scrolling:touch;
+  touch-action:pan-y;
 }
+#agent-panel::-webkit-scrollbar{width:3px}
+#agent-panel::-webkit-scrollbar-thumb{background:rgba(168,216,234,.15);border-radius:2px}
 #agent-panel-header{
   padding:12px 14px 10px;
   background:rgba(192,132,252,.08);
   border-bottom:1px solid var(--ui-bd);
   display:flex;align-items:center;gap:8px;
-  flex-shrink:0;
-  margin-top:46px; /* below HUD */
+  position:sticky;top:0;z-index:10;
 }
 #agent-panel-header h2{font-family:'Cinzel',serif;font-size:13px;letter-spacing:2.5px;color:var(--agent)}
-#agent-scroll{flex:1;overflow-y:scroll;-webkit-overflow-scrolling:touch;padding:12px;display:flex;flex-direction:column;gap:10px;min-height:0}
-#agent-scroll::-webkit-scrollbar{width:3px}
-#agent-scroll::-webkit-scrollbar-thumb{background:rgba(168,216,234,.15);border-radius:2px}
+#agent-scroll{padding:12px;display:flex;flex-direction:column;gap:10px}
 
 /* Agent section cards */
 .a-card{background:rgba(4,28,50,.6);border:1px solid var(--ui-bd);border-radius:8px;overflow:hidden}
@@ -342,7 +342,6 @@ body::after{
 }
 @media(max-width:640px){
   #agent-panel{position:fixed;right:0;left:0;top:auto;bottom:0;width:100%;height:55vh;border-left:none;border-top:1px solid var(--ui-bd)}
-  #agent-panel-header{margin-top:0}
   #game{right:0;bottom:55vh}
   body::after{display:none}
   #kelp-row{right:0;display:none}
