@@ -1055,10 +1055,15 @@ The action must be exactly "hit" or "stand". ${detailMap[aiDetail]}`;
     return;
   }
 
+  // Anthropic's API doesn't return CORS headers for arbitrary browser origins,
+  // so we route through corsproxy.io which adds the required Allow-Origin headers.
+  const ANTHROPIC_ENDPOINT='https://api.anthropic.com/v1/messages';
+  const fetchUrl='https://corsproxy.io/?url='+encodeURIComponent(ANTHROPIC_ENDPOINT);
+  console.log('[AI Agent] Fetching via CORS proxy:', fetchUrl);
+
   try{
-    const response=await fetch('https://api.anthropic.com/v1/messages',{
+    const response=await fetch(fetchUrl,{
       method:'POST',
-      mode:'cors',
       headers:{
         'Content-Type':'application/json',
         'x-api-key':apiKey.trim(),
