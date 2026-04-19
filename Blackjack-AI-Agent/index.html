@@ -432,7 +432,7 @@ body::after{
       <div class="a-card-body">
         <div id="key-status">No key loaded. Upload .env or paste below.</div>
         <label class="key-lbl">⬆ Upload .env File<input type="file" id="env-file" accept=".env,text/plain" style="display:none"></label>
-        <input type="password" id="key-input" placeholder="Or paste sk-ant-... key">
+        <input type="password" id="key-input" placeholder="Or paste sk-proj-... key">
         <button id="btn-set-key">Set Key</button>
         <div id="key-note">Key is in-memory only — never stored or logged.</div>
       </div>
@@ -459,20 +459,20 @@ body::after{
 
     <!-- Model Selection -->
     <div class="a-card">
-      <div class="a-card-hd">MODEL · ANTHROPIC</div>
+      <div class="a-card-hd">MODEL · OPENAI</div>
       <div class="a-card-body">
         <div class="model-card-grid">
-          <div class="model-chip active" data-model="claude-haiku-4-5-20251001">
-            <div class="mc-name">Haiku 4.5</div>
-            <div class="mc-tag">Fast · cheap</div>
+          <div class="model-chip active" data-model="gpt-4o-mini">
+            <div class="mc-name">GPT-4o mini</div>
+            <div class="mc-tag">Fast · affordable</div>
           </div>
-          <div class="model-chip" data-model="claude-sonnet-4-6">
-            <div class="mc-name">Sonnet 4.6</div>
-            <div class="mc-tag">Balanced</div>
+          <div class="model-chip" data-model="gpt-4o">
+            <div class="mc-name">GPT-4o</div>
+            <div class="mc-tag">Flagship</div>
           </div>
-          <div class="model-chip" data-model="claude-opus-4-7">
-            <div class="mc-name">Opus 4.7</div>
-            <div class="mc-tag">Most capable</div>
+          <div class="model-chip" data-model="gpt-4-turbo">
+            <div class="mc-name">GPT-4 Turbo</div>
+            <div class="mc-tag">Extended context</div>
           </div>
         </div>
       </div>
@@ -993,7 +993,7 @@ function refreshAnalytics(){
 /* ════════════════════════════════════════
    AI AGENT
 ════════════════════════════════════════ */
-let apiKey=null,aiDetail='brief',aiModel='claude-haiku-4-5-20251001',pendingAction=null;
+let apiKey=null,aiDetail='brief',aiModel='gpt-4o-mini',pendingAction=null;
 let aiExecutedThisHand=false,aiHandCounted=false;
 const aiData={hands:0,wins:0,losses:0,net:0,asked:0};
 
@@ -1003,7 +1003,7 @@ function parseEnvFile(text){
     if(!t||t.startsWith('#')||!t.includes('='))continue;
     const eq=t.indexOf('=');
     const k=t.slice(0,eq).trim(),v=t.slice(eq+1).trim().replace(/^["']|["']$/g,'');
-    if(['ANTHROPIC_API_KEY','CLAUDE_API_KEY','API_KEY'].includes(k))return v;
+    if(['OPENAI_API_KEY','API_KEY'].includes(k))return v;
   }
   return null;
 }
@@ -1080,27 +1080,23 @@ The action must be exactly "hit" or "stand". ${detailMap[aiDetail]}`;
   // Warn if running from file:// — CORS will block all API calls
   if(window.location.protocol==='file:'){
     analysisEl.style.color='#ff9a9a';analysisEl.style.fontStyle='italic';
-    analysisEl.textContent='Open via web server (GitHub Pages), not a local file — CORS blocks API calls from file://.';
+    analysisEl.textContent='Open via GitHub Pages, not a local file — CORS blocks API calls from file://.';
     agentBtn.disabled=!(state===S.PLAY&&apiKey);agentBtn.textContent='🤖 Ask AI Agent';
     return;
   }
 
-  // Anthropic's API doesn't return CORS headers for arbitrary browser origins,
-  // so we route through corsproxy.io which adds the required Allow-Origin headers.
-  const ANTHROPIC_ENDPOINT='https://api.anthropic.com/v1/messages';
-  const fetchUrl='https://corsproxy.io/?url='+encodeURIComponent(ANTHROPIC_ENDPOINT);
-  console.log('[AI Agent] Fetching via CORS proxy:', fetchUrl);
+  console.log('[AI Agent] Model:', aiModel);
+  console.log('[AI Agent] Fetching OpenAI chat completions...');
 
   try{
-    const response=await fetch(fetchUrl,{
+    const response=await fetch('https://api.openai.com/v1/chat/completions',{
       method:'POST',
       headers:{
         'Content-Type':'application/json',
-        'x-api-key':apiKey.trim(),
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-allow-browser':'true'
+        'Authorization':'Bearer '+apiKey.trim()
       },
-      body:JSON.stringify({model:aiModel,max_tokens:350,system:sys,messages:[{role:'user',content:userMsg}]})
+      body:JSON.stringify({model:aiModel,max_tokens:350,
+        messages:[{role:'system',content:sys},{role:'user',content:userMsg}]})
     });
     console.log('[AI Agent] HTTP status:', response.status, response.statusText);
 
@@ -1112,7 +1108,7 @@ The action must be exactly "hit" or "stand". ${detailMap[aiDetail]}`;
     const data=await response.json();
     console.log('[AI Agent] Raw API response:', data);
 
-    let rawText=data.content[0].text.trim();
+    let rawText=(data.choices[0].message.content||'').trim();
     rawText=rawText.replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'').trim();
     console.log('[AI Agent] Text after fence-strip:', rawText);
 
