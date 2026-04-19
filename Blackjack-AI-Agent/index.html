@@ -287,6 +287,15 @@ body::after{
 #btn-execute:hover:not(:disabled){box-shadow:0 0 18px rgba(192,132,252,.32);transform:translateY(-1px)}
 #btn-execute:disabled{opacity:.22;cursor:not-allowed;transform:none}
 
+/* Model chips */
+.model-card-grid{display:flex;flex-direction:column;gap:5px}
+.model-chip{padding:7px 9px;border-radius:5px;border:1px solid var(--ui-bd);background:rgba(0,5,15,.5);cursor:pointer;transition:all .2s}
+.model-chip:hover{border-color:rgba(192,132,252,.4)}
+.model-chip.active{background:rgba(192,132,252,.12);border-color:rgba(192,132,252,.5)}
+.model-chip .mc-name{font-family:'Cinzel',serif;font-size:10px;letter-spacing:1.5px;color:var(--agent)}
+.model-chip.active .mc-name{color:#e9d5ff}
+.model-chip .mc-tag{font-size:9px;color:rgba(168,216,234,.4);margin-top:1px;font-family:'Nunito',sans-serif}
+
 /* Explainability */
 .detail-row{display:flex;gap:5px}
 .detail-btn{flex:1;padding:5px 0;border-radius:4px;border:1px solid var(--ui-bd);background:transparent;color:rgba(168,216,234,.5);cursor:pointer;font-family:'Cinzel',serif;font-size:8px;letter-spacing:1px;transition:all .2s}
@@ -445,6 +454,27 @@ body::after{
           <div id="ai-rec-badge" class="none">—</div>
         </div>
         <button id="btn-execute" disabled>⚡ Execute Recommendation</button>
+      </div>
+    </div>
+
+    <!-- Model Selection -->
+    <div class="a-card">
+      <div class="a-card-hd">MODEL · ANTHROPIC</div>
+      <div class="a-card-body">
+        <div class="model-card-grid">
+          <div class="model-chip active" data-model="claude-haiku-4-5-20251001">
+            <div class="mc-name">Haiku 4.5</div>
+            <div class="mc-tag">Fast · cheap</div>
+          </div>
+          <div class="model-chip" data-model="claude-sonnet-4-6">
+            <div class="mc-name">Sonnet 4.6</div>
+            <div class="mc-tag">Balanced</div>
+          </div>
+          <div class="model-chip" data-model="claude-opus-4-7">
+            <div class="mc-name">Opus 4.7</div>
+            <div class="mc-tag">Most capable</div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -963,7 +993,7 @@ function refreshAnalytics(){
 /* ════════════════════════════════════════
    AI AGENT
 ════════════════════════════════════════ */
-let apiKey=null,aiDetail='brief',pendingAction=null;
+let apiKey=null,aiDetail='brief',aiModel='claude-haiku-4-5-20251001',pendingAction=null;
 let aiExecutedThisHand=false,aiHandCounted=false;
 const aiData={hands:0,wins:0,losses:0,net:0,asked:0};
 
@@ -1070,7 +1100,7 @@ The action must be exactly "hit" or "stand". ${detailMap[aiDetail]}`;
         'anthropic-version':'2023-06-01',
         'anthropic-dangerous-allow-browser':'true'
       },
-      body:JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:350,system:sys,messages:[{role:'user',content:userMsg}]})
+      body:JSON.stringify({model:aiModel,max_tokens:350,system:sys,messages:[{role:'user',content:userMsg}]})
     });
     console.log('[AI Agent] HTTP status:', response.status, response.statusText);
 
@@ -1173,6 +1203,14 @@ document.getElementById('btn-execute').addEventListener('click',executeRec);
     document.querySelectorAll('.detail-btn').forEach(b=>b.classList.remove('active'));
     document.getElementById('detail-'+id).classList.add('active');
     console.log('[AI Agent] Explanation mode:', id);
+  });
+});
+document.querySelectorAll('.model-chip').forEach(chip=>{
+  chip.addEventListener('click',()=>{
+    document.querySelectorAll('.model-chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    aiModel=chip.dataset.model;
+    console.log('[AI Agent] Model selected:', aiModel);
   });
 });
 
